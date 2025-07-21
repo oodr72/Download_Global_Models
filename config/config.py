@@ -77,19 +77,7 @@ WW3_time_step = 6
 WW3_output_directory = "data/ww3"
 
 domains = {
-    "atlantic":{
-        "lon_min": -90,
-        "lon_max": 1,
-        "lat_min": 9,
-        "lat_max": 54
-            },
-    "d2":{
-        "lon_min": -90,
-        "lon_max": 1,
-        "lat_min": 9,
-        "lat_max": 54
-            },    
-    "caribbean": {
+    "atlantic": {  # North Atlantic and Carribean
         "lon_min": -90,
         "lon_max": 1,
         "lat_min": 9,
@@ -100,5 +88,59 @@ domains = {
         "lon_max": 36,
         "lat_min": 30,
         "lat_max": 46 
+    },
+    "arctic": {
+        "lon_min": -180,
+        "lon_max": 180,
+        "lat_min": 66.5,  # Arctic Circle
+        "lat_max": 90
+    },
+    "north_atlantic": {
+        "lon_min": -90,
+        "lon_max": 0,
+        "lat_min": 0,      # Equator
+        "lat_max": 66.5    # Arctic Circle
+    },
+    "south_atlantic": {
+        "lon_min": -90,
+        "lon_max": 20,     # Cape Agulhas (20°E)
+        "lat_min": -60,     # Antarctic Convergence
+        "lat_max": 0       # Equator
+    },
+    "north_pacific": {
+        "lon_min": 120,    # East Asia
+        "lon_max": -100,   # West Americas (crosses dateline)
+        "lat_min": 0,
+        "lat_max": 66.5
+    },
+    "south_pacific": {
+        "lon_min": 120,    # East Australia
+        "lon_max": -70,    # West South America (crosses dateline)
+        "lat_min": -60,
+        "lat_max": 0
+    },
+    "indian": {
+        "lon_min": 20,     # South Africa
+        "lon_max": 120,    # West Australia
+        "lat_min": -60,
+        "lat_max": 30      # Persian Gulf
+    },
+    "southern": {          # Southern Ocean
+        "lon_min": -180,
+        "lon_max": 180,
+        "lat_min": -80,    # Antarctic coast (approx.)
+        "lat_max": -60     # Antarctic Convergence
+    },
+    "red_sea": {
+        "lon_min": 32,     # Suez Canal
+        "lon_max": 44,     # Bab-el-Mandeb
+        "lat_min": 12,     # Southern entrance
+        "lat_max": 30      # Gulf of Aqaba
+    },
+    "caribbean": {
+        "lon_min": -90,    # Central America
+        "lon_max": -60,    # Lesser Antilles
+        "lat_min": 9,      # Panama/Caribbean Colombia
+        "lat_max": 25      # Bahamas/Cuba
     }
 }
