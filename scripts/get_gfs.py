@@ -17,7 +17,10 @@ Requires
 * pygrib           (optional engine --engine pygrib)
 * netCDF4 / h5netcdf
 * eccodes libs on the system
-"""
+Ejample:
+
+    python -m scripts.get_gfs --date 20250717 --time 00 --format netcdf --engine pygrib --keep-grib2 
+    """
 from __future__ import annotations
 
 import argparse
