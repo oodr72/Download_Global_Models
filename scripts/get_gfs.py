@@ -17,7 +17,7 @@ Requires
 * pygrib           (optional engine --engine pygrib)
 * netCDF4 / h5netcdf
 * eccodes libs on the system
-Ejample:
+Ejemple:
 
     python -m scripts.get_gfs --date 20250717 --time 00 --format netcdf --engine pygrib --keep-grib2 
     """
@@ -33,6 +33,7 @@ from typing import Iterable, Sequence
 
 import requests
 from config import config  # your project's config/config.py
+
 
 
 # ========================================================================= #
