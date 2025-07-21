@@ -1,0 +1,23 @@
+== Site
+https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?
+
+== Forecast
+current date + 384 hours (16 days)
+== step
+3 hours
+
+== Downloading some examples
+
+URL=
+https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t00z.pgrb2.0p25.anl&var_UGRD=on&var_U-GWD=on&var_VGRD=on&var_V-GWD=on&subregion=&leftlon=-90&rightlon=1&toplat=54&bottomlat=9&dir=%2Fgfs.20250509%2F00%2Fatmos
+gfs.t00z.pgrb2.0p25.anl.grb2
+https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t00z.pgrb2.0p25.f006&var_UGRD=on&var_U-GWD=on&var_VGRD=on&var_V-GWD=on&subregion=&leftlon=-90&rightlon=1&toplat=54&bottomlat=9&dir=%2Fgfs.20250509%2F00%2Fatmos
+gfs.t00z.pgrb2.0p25.f006.grb2
+gfs.t00z.pgrb2.0p25.f012.grb2
+...
+gfs.t00z.pgrb2.0p25.f384.grb2
+
+
+== variables
+ugrdprs
+vgrdprs

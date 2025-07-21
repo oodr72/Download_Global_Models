@@ -1,0 +1,51 @@
+===============================================
+=== Instalando y configurando
+
+conda install -c conda-forge copernicusmarine
+
+=== alternative
+
+python -m pip install copernicusmarine
+
+=== El usuario debe estar registrado en Copernicus Marine Data Store
+=Web
+https://cds.climate.copernicus.eu/#!/home
+
+=en el teminal
+copernicusmarine login
+= Nota
+Esto creará un archivo de configuración con tus credenciales.
+Este archivo se llama .copernicusmarine-credentials y por defecto se 
+guarda en el directorio home (tu carpeta personal) dentro de una carpeta 
+oculta llamada .copernicusmarine.
+== desde Python
+import copernicusmarine
+copernicusmarine.login(username="TU_USUARIO", password="TU_CONTRASEÑA")
+
+== Luego... a usar la libreria!!!
+
+================== Features
+
+== Services
+GLOBAL_ANALYSISFORECAST_PHY_001_024
+
+== Spatial Resolution
+1/12 degree (~ 9Km)
+
+== Forecast until: current date + 9 days
+step: 1 hour
+
+== Variables
+u, v
+
+Others
+salinity, temperature, SSH
+
+== levels
+Niveles intermedios en: 1 m, 2 m, 5 m, 10 m, 20 m, 30 m, 50 m, 75 m, 100 m,
+150 m, 200 m, 300 m, 400 m, 500 m, 600 m, 700 m, 800 m, 900 m, 1000 m, 1100 m,
+1200 m, 1300 m, 1400 m, 1500 m, 1600 m, 1700 m, 1800 m, 1900 m, 2000 m, 2100 m,
+2200 m, 2300 m, 2400 m, 2500 m, 2600 m, 2700 m, 2800 m, 2900 m, 3000 m, 3100 m,
+3200 m, 3300 m, 3400 m, 3500 m, 3600 m, 3700 m, 3800 m, 3900 m, 4000 m, 4100 m,
+4200 m, 4300 m, 4400 m, 4500 m, 4600 m, 4700 m, 4800 m, 4900 m, 5000 m, 5100 m,
+5200 m, 5300 m, 5400 m, 5500 m, 5600 m, 5700 m, 5800 m, 5900 m.

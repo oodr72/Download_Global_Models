@@ -1,0 +1,22 @@
+decouple==0.0.7
+dotenv==0.9.9
+netCDF4==1.7.2
+copernicusmarine==2.2.0
+cdsapi==0.7.6
+ecmwf-opendata==0.3.19
+cfgrib==0.9.15.0
+xarray==2025.7.1
+# core libs
+# sudo apt-get install libeccodes0 libeccodes-dev
+# pip install requests xarray cfgrib netCDF4
+
+# optional pygrib backend
+# sudo apt-get install libproj-dev proj-bin proj-data
+# pip install pygrib
+
+# pip install cfgrib
+# pip install cdsapi
+# pip install ecmwf-api-client
+# python -m pip install copernicusmarine
+# python -m pip install python-decouple
+# python -m pip install dotenv

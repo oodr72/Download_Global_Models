@@ -1,0 +1,71 @@
+MFWAM Meteo France WAve Model
+1/12 degree (~ 9Km)
+
+Product identifier
+GLOBAL_ANALYSISFORECAST_WAV_001_027
+Product name
+Global Ocean Waves Analysis and Forecast
+
+Forecast until: current date + 9 days
+step: 3 hours
+
+Site
+https://data.marine.copernicus.eu/product/GLOBAL_ANALYSISFORECAST_WAV_001_027/services
+
+variables=["VHM0_WW", "VHM0_SW1", "VMDR_WW", "VMDR_SW1",  "VTM01_WW", "VTM01_SW1"]
+***The best variables***
+
+***VHM0_WW [m]
+Spectral significant wind wave height
+sea_surface_wind_wave_significant_height
+
+***VHM0_SW1 [m]
+Spectral significant primary swell wave height
+sea_surface_primary_swell_wave_significant_height
+
+***VMDR_WW [degree]
+Mean wind wave direction from
+sea_surface_wind_wave_from_direction
+
+***VMDR_SW1 [degree]
+Mean primary swell wave direction from
+sea_surface_primary_swell_wave_from_direction
+
+VMDR_SW2 [degree]
+Mean secondary swell wave direction from
+sea_surface_secondary_swell_wave_from_direction
+
+***VTM01_WW [s]
+Spectral moments (0,1) wind wave period
+sea_surface_wind_wave_mean_period
+
+***VTM01_SW1 [s]
+Spectral moments (0,1) primary swell wave period
+sea_surface_primary_swell_wave_mean_period
+
+VTM01_SW2 [s]
+Spectral moments (0,1) secondary swell wave period
+sea_surface_secondary_swell_wave_mean_period
+
+======== All variables =========
+
+Sea surface wave maximum heightVCMX [m]
+Sea surface wave significant heightVHM0 [m]
+Sea surface primary swell wave significant heightVHM0_SW1 [m]
+Sea surface secondary swell wave significant heightVHM0_SW2 [m]
+Sea surface wind wave significant heightVHM0_WW [m]
+Sea surface wave from directionVMDR [°]
+Sea surface primary swell wave from directionVMDR_SW1 [°]
+Sea surface secondary swell wave from directionVMDR_SW2 [°]
+Sea surface wind wave from directionVMDR_WW [°]
+Sea surface wave maximum crest heightVMXL [m]
+Sea surface wave from direction at variance spectral density maximumVPED [°]
+
+Sea surface wave stokes drift x velocityVSDX [m/s]
+Sea surface wave stokes drift y velocityVSDY [m/s]
+Sea surface primary swell wave mean periodVTM01_SW1 [s]
+Sea surface secondary swell wave mean periodVTM01_SW2 [s]
+Sea surface wind wave mean periodVTM01_WW [s]
+Sea surface wave mean period from variance spectral density second frequency momentVTM02 [s]
+Sea surface wave mean period from variance spectral density inverse frequency momentVTM10 [s]
+Sea surface wave period at variance spectral density maximumVTPK [s]
