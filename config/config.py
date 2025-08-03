@@ -38,8 +38,8 @@ GFS_time_step = 6 # [1, 3, 6]
 # ECMWF Configuration
 ECMWF_days_number = days_number
 ECMWF_domain = domain_name
-ECMWF_run_hour = "12"
-ECMWF_time_step = 3
+ECMWF_run_hour = "00"
+ECMWF_time_step = 6
 ECMWF_output_directory = "data/ecmwf"
 
 
