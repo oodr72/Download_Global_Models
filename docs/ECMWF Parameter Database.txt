@@ -1,0 +1,45 @@
+https://codes.ecmwf.int/grib/param-db/
+filtered_dfHere is the table for ECMWF forecast common 2D (single-level) parameters including their names, short names, IDs, and units extracted from the ECMWF parameter database:
+Name	Short Name	ID	Units
+2 metre temperature	2t	167	K
+2 metre dewpoint temperature	2d	168	K
+10 metre U wind component	10u	165	m/s
+10 metre V wind component	10v	166	m/s
+100 metre U wind component	100u	180	m/s
+100 metre V wind component	100v	181	m/s
+Mean sea level pressure	msl	151	Pa
+Total cloud cover	tcc	238	0-1 (fraction)
+Total column water vapour	tcwv	182	kg/m^2
+Total column cloud liquid water	tclw	235	kg/m^2
+Total column cloud ice water	tciw	233	kg/m^2
+Sea-surface temperature	sst	193	K
+Sea-ice temperature	sit	234	K
+Surface altitude	orog	156	m
+Land area fraction	land	21	0-1 (fraction)
+Total precipitation	tp	228	m
+Snowfall	sf	110	mwater equivalent
+Snow depth	sd	235	m
+Snow cover	sfcc	45	0-1 (fraction)
+Snow density	sd	111	kg/m^3
+2 metre maximum temperature	2tx	235	K
+2 metre minimum temperature	2tn	236	K
+10 metre wind gust	10fg	228	m/s
+Surface sensible heat flux	sshf	170	W/m^2
+Surface latent heat flux	slhf	171	W/m^2
+Surface solar radiation downwards	ssrd	172	W/m^2
+Surface thermal radiation downwards	strd	173	W/m^2
+Surface net solar radiation	ssr	174	W/m^2
+Surface net thermal radiation	str	175	W/m^2
+Top net solar radiation	tsr	176	W/m^2
+Top incoming solar radiation	tisr	177	W/m^2
+Top net thermal radiation	ttr	178	W/m^2
+Eastward turbulent surface stress	ets	237	N/m^2
+Northward turbulent surface stress	nts	238	N/m^2
+Evaporation	e	30	m
+Runoff	ro	29	m
+Sea-ice cover	sice	228	0-1 (fraction)
+Soil temperature	st	varies by soil level	K
+Volumetric soil moisture	sm	varies by soil level	m3/m3
+Orography / surface altitude	orog	156	m
+Land-sea mask	landsea	21	0-1 (fraction)
+
