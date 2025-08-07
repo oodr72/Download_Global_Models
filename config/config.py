@@ -42,7 +42,7 @@ ECMWF_domain = domain_name
 ECMWF_run_hour = "12"
 ECMWF_time_step = 3
 ECMWF_output_directory = "data/ecmwf"
-ECMWF_variables = ["2t","10u", "10v", "msl"]
+ECMWF_variables = ["2t", "2d", "10u", "10fg", "10v", "100u", "100v", "msl", "sst", "ssh", "tp", "ssrd", "ets", "nts", "sice", "tpr"]
 ECMWF_variables = ["2t","10u", "10v"]
 
 # FMWAM model parameters
