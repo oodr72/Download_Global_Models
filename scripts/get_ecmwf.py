@@ -67,7 +67,7 @@ def _parse_arguments() -> argparse.Namespace:
                         help="Base output directory.")
     parser.add_argument("--engine", choices=["cfgrib", "pygrib"], default="cfgrib",
                         help="Engine to use for GRIB→NetCDF conversion.")
-    parser.add_argument("--variables", nargs="*", default=None,
+    parser.add_argument("--variables", nargs="*", default=config.ECMWF_variables,
                         help="Space‑separated list of GRIB shortNames to retain (e.g. 2t 10u 10v).")
     return parser.parse_args()
 
