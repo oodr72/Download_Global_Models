@@ -9,7 +9,7 @@ Download GFS 0.25° GRIB2 files and convert them to NetCDF, keeping:
   • height‑above‑ground fields at 0 m, 2 m and 10 m
 
 All files for one run are stored in <outpath>/<YYYYMMDDHH>/.
-
+  
 Requires
 --------
 * requests
@@ -17,7 +17,10 @@ Requires
 * pygrib           (optional engine --engine pygrib)
 * netCDF4 / h5netcdf
 * eccodes libs on the system
-"""
+Ejemple:
+
+    python -m scripts.get_gfs --date 20250717 --time 00 --format netcdf --engine pygrib --keep-grib2 
+    """
 from __future__ import annotations
 
 import argparse
@@ -30,6 +33,7 @@ from typing import Iterable, Sequence
 
 import requests
 from config import config  # your project's config/config.py
+
 
 
 # ========================================================================= #
