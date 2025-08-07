@@ -46,7 +46,7 @@ def parse_cli() -> argparse.Namespace:
             "surface, meanSea and heightAboveGround (0/2/10 m) fields."
         )
     )
-    p.add_argument("--date", default=datetime.now(timezone.utc).strftime("%Y%m%d"),
+    p.add_argument("--start_date", default=datetime.now(timezone.utc).strftime("%Y%m%d"),
                    help='Initial date in "yyyymmdd"')
     p.add_argument("--time", default=config.GFS_run_time,
                    choices=["00", "06", "12", "18"],
@@ -298,7 +298,7 @@ if __name__ == "__main__":
         print(f"Domain “{opts.domain}” not found; choose from {list(config.domains)}")
         sys.exit(1)
 
-    run_folder = make_run_folder(opts.outpath, opts.date, opts.time)
+    run_folder = make_run_folder(opts.outpath, opts.start_date, opts.time)
 
     print("\n=== PARAMETERS =====================================================")
     for k, v in vars(opts).items():
@@ -309,7 +309,7 @@ if __name__ == "__main__":
     t0 = timeit.default_timer()
 
     main(
-        date_str=opts.date,
+        date_str=opts.start_date,
         init_str=opts.time,
         timestep=opts.timestep,
         last_hour=opts.last_hour,

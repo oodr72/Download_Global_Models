@@ -12,9 +12,10 @@ number_of_hours = days_number * 24
 GFS_output_directory="data/gfs"
 # GFS_variables = ["UGRD", "VGRD", "TMP", "VIS", "SLP", "PRES", "PRMSL", "GUST", "APCP", "DPT", "DSWRF", "SPFH"]
 GFS_atmospheric_variables = ["UGRD", "VGRD", "TMP", "VIS", "PRMSL", "PRES", "GUST", "APCP", "DPT", "DSWRF", "SPFH"]
-# GFS_sea_variables = ["ICEC", "SST", "SSS", "SSH", "UVEL", "VVEL", "SIC", "SEAICE_THICKNESS"]
-# GFS_sea_variables = ["ICEC"]
-GFS_variables = GFS_atmospheric_variables #+ GFS_sea_variables
+GFS_atmospheric_variables = ["UGRD", "VGRD", "TMP"]
+GFS_sea_variables = ["ICEC", "SST", "SSS", "SSH", "UVEL", "VVEL", "SIC", "SEAICE_THICKNESS"]
+GFS_sea_variables = ["ICEC"]
+GFS_variables = GFS_atmospheric_variables  + GFS_sea_variables
 GFS_run_time =  "00" 
 GFS_timestep = 6 
 GFS_last_hour = number_of_hours # 16 days (384 hours)
@@ -41,8 +42,8 @@ ECMWF_domain = domain_name
 ECMWF_run_hour = "12"
 ECMWF_time_step = 3
 ECMWF_output_directory = "data/ecmwf"
-ECMWF_variables = "2t,10u,10v,msl"
-
+ECMWF_variables = ["2t","10u", "10v", "msl"]
+ECMWF_variables = ["2t","10u", "10v"]
 
 # FMWAM model parameters
 #------------------------------------------------
