@@ -1,30 +1,60 @@
-# Output directory path
+'''
+config.py
+Configuration file for global weather and ocean models
+This file contains parameters for various global models including GFS, ECMWF, FMWAM, GLORYS, HYCOM, and WW3.
+'''
 
+# General configuration for global models
+#------------------------------------------------
 # Set the domain name
-domain_name = "atlantic"
+domain_name = "atlantic" # ["atlantic", "mediterranean", "arctic", "north_atlantic", "south_atlantic"]
 # Set the number of days to forecast
 days_number = 1
 number_of_hours = days_number * 24
+#------------------------------------------------
+
 
 # GFS model parameters
 #------------------------------------------------
 # GFS_output_directory="/media/amilcar/STORE/DATA/OPERATIVE_MODELS/WIND/Data_gfs"
 GFS_output_directory="data/gfs"
-# GFS_variables = ["UGRD", "VGRD", "TMP", "VIS", "SLP", "PRES", "PRMSL", "GUST", "APCP", "DPT", "DSWRF", "SPFH"]
-GFS_atmospheric_variables = ["UGRD", "VGRD", "TMP", "VIS", "PRMSL", "PRES", "GUST", "APCP", "DPT", "DSWRF", "SPFH"]
-GFS_atmospheric_variables = ["UGRD", "VGRD", "TMP"]
-GFS_sea_variables = ["ICEC", "SST", "SSS", "SSH", "UVEL", "VVEL", "SIC", "SEAICE_THICKNESS"]
-GFS_sea_variables = ["ICEC"]
-GFS_variables = GFS_atmospheric_variables  + GFS_sea_variables
-GFS_run_time =  "00" 
-GFS_timestep = 6 
+GFS_run_time =  "06" # ["00", "06", "12", "18"]
+GFS_timestep = 6 # [1, 3, 6]
 GFS_last_hour = number_of_hours # 16 days (384 hours)
-
 GFS_domain = domain_name
-GFS_days_number = days_number
-GFS_run_hour = "00" # ["00", "06", "12", "18"]
-GFS_time_step = 6 # [1, 3, 6]
+
+# GFS atmospheric variables
+GFS_atmospheric_variables = [
+    "UGRD", #   U-Component of Wind (zonal wind) in m/s
+    "VGRD", #	V-Component of Wind (meridional wind) in m/s
+    "TMP", #	Temperature in Kelvin (K)
+    "VIS", #	Visibility in meters (m)
+    "PRMSL", #	Pressure Reduced to Mean Sea Level (Pa)
+    "PRES", #	Atmospheric Pressure at specified level (Pa)
+    "GUST", #	Maximum Wind Speed (Gust) in m/s
+    "APCP", #	Accumulated Precipitation (usually in kg/m²)
+    "DPT", #	Dew Point Temperature (often in Kelvin or Celsius)
+    "DSWRF", #	Downward Shortwave Radiation Flux
+    "SPFH", #	Specific Humidity (kg/kg)
+    ]
+GFS_atmospheric_variables = ["UGRD", "VGRD", "TMP"]
+
+GFS_sea_variables = [
+    "ICEC", # Ice Cover (fraction)
+    "SST", # Sea Surface Temperature (K)
+    "SSS", # Sea Surface Salinity (psu)
+    "SSH", # Sea Surface Height (m)
+    "UVEL", # Ocean U Velocity (m/s)
+    "VVEL", # Ocean V Velocity (m/s)
+    "SIC", # Sea Ice Concentration (fraction)
+    "SEAICE_THICKNESS" # Sea Ice Thickness (m)
+    ]
+GFS_sea_variables = ["ICEC"]
+
+# GFS_variables = ["UGRD", "VGRD", "TMP", "VIS", "SLP", "PRES", "PRMSL", "GUST", "APCP", "DPT", "DSWRF", "SPFH"]
+GFS_variables = GFS_atmospheric_variables  + GFS_sea_variables
 #------------------------------------------------
+
 
 # ECMWF Configuration
 #------------------------------------------------
