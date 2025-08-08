@@ -26,24 +26,37 @@ GFS_run_hour = "00" # ["00", "06", "12", "18"]
 GFS_time_step = 6 # [1, 3, 6]
 #------------------------------------------------
 
-#------------------------------------------------
-# ECMWF Forecast Configuration
-# ECMWF_forecast_days = 3      # Forecast duration in days
-# ECMWF_run_hour = "00"         # Model run hour (00, 06, 12, 18)
-# ECMWF_output_directory = "data/ecmwf"
-# ECMWF_variables = ["UGRD", "VGRD", "TMP", "SPFH", "HGT"]
-# ECMWF_resolution = 0.25  # Grid resolution in degrees
-# ECMWF_time_step = 3  # Forecast step interval (hours)
-# ECMWF_domain = domain_name
-
 # ECMWF Configuration
+#------------------------------------------------
 ECMWF_days_number = days_number
 ECMWF_domain = domain_name
 ECMWF_run_hour = "12"
 ECMWF_time_step = 3
 ECMWF_output_directory = "data/ecmwf"
-ECMWF_variables = ["2t", "2d", "10u", "10fg", "10v", "100u", "100v", "msl", "sst", "ssh", "tp", "ssrd", "ets", "nts", "sice", "tpr"]
+ECMWF_variables = [
+    "2t", # 2m temperature (K)
+    "2d", # 2m dew point temperature (K)
+    "10u", # 10m U wind component (m/s)
+    "10v", # 10m V wind component (m/s)
+    "10fg", # 10m wind gust (m/s)
+    "100u", # 100m U wind component (m/s)
+    "100v", # 100m V wind component (m/s)
+    "msl", # Mean sea level pressure (Pa)
+    "sst", # Sea surface temperature (K)
+    "ssh", # Sea surface height (m)
+    "tp", # Total precipitation (m)
+    "tpr", # Total precipitation rate (kg m⁻² s⁻¹)
+    "ssrd", # Integrated downward solar radiation (J m⁻²)
+    "tisr", # Top incoming solar radiation (W m⁻²)
+    "ets", # Evapotranspiration
+    "nts", # Net surface solar radiation
+    "sice", # Sea ice cover
+    "usurf", # Ocean surface current (eastward)
+    "vsurf" # Ocean surface current (northward)
+    ]
 # ECMWF_variables = ["2t","10u", "10v"]
+# ECMWF_variables = None # Uncomment this line to set default variables
+#------------------------------------------------
 
 # FMWAM model parameters
 #------------------------------------------------
