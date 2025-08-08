@@ -37,7 +37,7 @@ GFS_atmospheric_variables = [
     "DSWRF", #	Downward Shortwave Radiation Flux
     "SPFH", #	Specific Humidity (kg/kg)
     ]
-GFS_atmospheric_variables = ["UGRD", "VGRD", "TMP"]
+GFS_atmospheric_variables = ["UGRD", "VGRD", "TMP", "PRMSL"]
 
 GFS_sea_variables = [
     "ICEC", # Ice Cover (fraction)
@@ -84,7 +84,7 @@ ECMWF_variables = [
     "usurf", # Ocean surface current (eastward)
     "vsurf" # Ocean surface current (northward)
     ]
-# ECMWF_variables = ["2t","10u", "10v"]
+ECMWF_variables = ["2t", "2d","msl","10u", "10v"]
 # ECMWF_variables = None # Uncomment this line to set default variables
 #------------------------------------------------
 
@@ -101,11 +101,24 @@ FMWAM_domain = domain_name
 #------------------------------------------------
 # GLORYS_output_directory="/media/amilcar/STORE/DATA/OPERATIVE_MODELS/MARINE_CURRENT/Data_Glorys"
 GLORYS_output_directory = "data/glorys"
-GLORYS_variables = ["thetao", "uo", "vo"]
 GLORYS_days_number = days_number
 GLORYS_domain = domain_name
 GLORYS_minimum_depth=0.49402499198913574
 GLORYS_maximum_depth=0.49402499198913574
+
+GLORYS_variables = [
+    "thetao", # Potential Temperature
+    "so",    # Salinity
+    "zos",   # Sea Surface Height
+    "uo",  # Eastward Sea Water Velocity
+    "vo" # Northward Sea Water Velocity
+    "siconc", # Sea Ice Concentration
+    "sithick", # Sea Ice Thickness
+    "usi", # Eastward Sea Ice Velocity
+    "vsi", # Northward Sea Ice Velocity
+    "mlotst" # Mixed Layer Depth
+    ]
+GLORYS_variables = ["uo", "vo"]
 #------------------------------------------------
 
 # HYCOM Configuration
