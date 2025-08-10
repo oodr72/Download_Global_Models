@@ -37,22 +37,50 @@ GFS_atmospheric_variables = [
     "DSWRF", #	Downward Shortwave Radiation Flux
     "SPFH", #	Specific Humidity (kg/kg)
     ]
-GFS_atmospheric_variables = ["UGRD", "VGRD", "TMP", "PRMSL"]
+# GFS_atmospheric_variables = ["UGRD", "VGRD", "TMP", "PRMSL"]
 
 GFS_sea_variables = [
     "ICEC", # Ice Cover (fraction)
     "SST", # Sea Surface Temperature (K)
     "SSS", # Sea Surface Salinity (psu)
     "SSH", # Sea Surface Height (m)
-    "UVEL", # Ocean U Velocity (m/s)
-    "VVEL", # Ocean V Velocity (m/s)
-    "SIC", # Sea Ice Concentration (fraction)
+    "UVEL", # surface ocean current U Velocity (m/s)
+    "VVEL", # Surface ocean current V Velocity (m/s)
     "SEAICE_THICKNESS" # Sea Ice Thickness (m)
     ]
-GFS_sea_variables = ["ICEC"]
+GFS_sea_variables = ["ICEC", "SST", "SSS", "SSH", "UVEL", "VVEL", "SIC", "SEAICE_THICKNESS"]
 
 # GFS_variables = ["UGRD", "VGRD", "TMP", "VIS", "SLP", "PRES", "PRMSL", "GUST", "APCP", "DPT", "DSWRF", "SPFH"]
 GFS_variables = GFS_atmospheric_variables  + GFS_sea_variables
+#------------------------------------------------
+
+
+# RTOFS Configuration
+#------------------------------------------------
+# RTOFS_output_directory="/media/amilcar/STORE/DATA/OPERATIVE_MODELS/OCEAN/Data_RTOFS"
+# RTOFS_output_directory = "/media/amilcar/STORE/DATA/OPERATIVE_MODELS/OCEAN/Data_RTOFS"
+RTOFS_output_directory = "data/rtofs"
+RTOFS_run_time = "00" # ["00", "06", "12", "18"]
+RTOFS_timestep = 6 # [1, 3, 6]
+RTOFS_last_hour = number_of_hours # 16 days (72 hours)
+RTOFS_days_number = days_number
+RTOFS_domain = domain_name
+
+RTOFS_variables = [
+   "SST", # Surface Temperature (K)
+    "SSS", # Surface Salinity (psu)
+    "UVEL", # U Velocity (m/s)
+    "VVEL", # V Velocity (m/s)
+    "SSH", # Sea Surface Height (m)
+    "SIC", # Sea Ice Concentration (fraction)
+    "SITHICK", # Sea Ice Thickness (m)
+    "UICE", # Eastward Sea Ice Velocity (m/s)
+    "VICE", # Northward Sea Ice Velocity (m/s)
+    "SEAICE_CONCENTRATION", # Sea Ice Concentration (fraction)
+    "SEAICE_THICKNESS", # Sea Ice Thickness (m)
+    "MLD" # Mixed Layer Depth (m)
+]
+RTOFS_variables = ["SST", "SSS", "SSH", "UVEL", "VVEL", "SEAICE_THICKNESS"]
 #------------------------------------------------
 
 
