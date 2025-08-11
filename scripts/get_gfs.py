@@ -13,6 +13,7 @@ All files for one run are stored in <outpath>/<YYYYMMDDHH>/.
 Example
 -------
 python -m scripts.get_gfs --start_date 20250805 --time 06 --engine pygrib
+python -m scripts.get_gfs --start_date 20250805 
 """
 from __future__ import annotations
 

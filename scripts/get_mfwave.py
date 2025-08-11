@@ -8,7 +8,6 @@ Example:
     python3 -m scripts.get_mfwave
 """
 
-
 from pathlib import Path
 import sys
 import copernicusmarine
