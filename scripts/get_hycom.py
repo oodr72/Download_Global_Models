@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 # coding: utf-8
+"""
+This script downloads and processes HYCOM ocean forecast data
+Needs acces to the config file
+If the date is not provided as an argument, the script will use the current date
+Example:
+    python3 -m scripts.get_hycom
+"""
 
 import os
 import requests

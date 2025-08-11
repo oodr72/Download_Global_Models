@@ -57,7 +57,7 @@ def parse_cli() -> argparse.Namespace:
                    help="Store files as GRIB2 (raw) or NetCDF (default)")
     p.add_argument("--keep-grib2", action="store_true",
                    help="When --format netcdf, keep the original GRIB2 files")
-    p.add_argument("--engine", choices=["cfgrib", "pygrib"], default="cfgrib",
+    p.add_argument("--engine", choices=["cfgrib", "pygrib"], default="pygrib",
                    help="Backend to read GRIB2 files")
     return p.parse_args()
 

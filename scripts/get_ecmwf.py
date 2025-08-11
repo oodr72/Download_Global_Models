@@ -14,8 +14,8 @@ Changes 2025‑08‑07
 
 Usage examples
 --------------
-$ python -m scripts.get_ecmwf_corrected
-$ python -m scripts.get_ecmwf_corrected --start_date 20250805 \
+$ python -m scripts.get_ecmwf
+$ python -m scripts.get_ecmwf --start_date 20250805 \
         --run_hour 12 --days_number 1 --time_step 3 \
         --domain atlantic --variables 2t 10u 10v
 
@@ -65,7 +65,7 @@ def _parse_arguments() -> argparse.Namespace:
                         help="Time‑step between forecast files in hours.")
     parser.add_argument("--outpath", type=str, default=config.ECMWF_output_directory,
                         help="Base output directory.")
-    parser.add_argument("--engine", choices=["cfgrib", "pygrib"], default="cfgrib",
+    parser.add_argument("--engine", choices=["cfgrib", "pygrib"], default="pygrib",
                         help="Engine to use for GRIB→NetCDF conversion.")
     parser.add_argument("--variables", nargs="*", default=config.ECMWF_variables,
                         help="Space‑separated list of GRIB shortNames to retain (e.g. 2t 10u 10v).")

@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 # coding: utf-8
+"""
+This script downloads and processes MFWave data
+Needs acces to the config file
+If the date is not provided as an argument, the script will use the current date
+Example:
+    python3 -m scripts.get_mfwave
+"""
+
 
 from pathlib import Path
 import sys

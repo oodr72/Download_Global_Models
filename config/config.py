@@ -18,13 +18,13 @@ number_of_hours = days_number * 24
 #------------------------------------------------
 # GFS_output_directory="/media/amilcar/STORE/DATA/OPERATIVE_MODELS/WIND/Data_gfs"
 GFS_output_directory="data/gfs"
-GFS_run_time =  "06" # ["00", "06", "12", "18"]
+GFS_run_time =  "00" # ["00", "06", "12", "18"]
 GFS_timestep = 6 # [1, 3, 6]
 GFS_last_hour = number_of_hours # 16 days (384 hours)
 GFS_domain = domain_name
 
 # GFS atmospheric variables
-GFS_atmospheric_variables = [
+GFS_variables = [
     "UGRD", #   U-Component of Wind (zonal wind) in m/s
     "VGRD", #	V-Component of Wind (meridional wind) in m/s
     "TMP", #	Temperature in Kelvin (K)
@@ -37,21 +37,7 @@ GFS_atmospheric_variables = [
     "DSWRF", #	Downward Shortwave Radiation Flux
     "SPFH", #	Specific Humidity (kg/kg)
     ]
-# GFS_atmospheric_variables = ["UGRD", "VGRD", "TMP", "PRMSL"]
-
-GFS_sea_variables = [
-    "ICEC", # Ice Cover (fraction)
-    "SST", # Sea Surface Temperature (K)
-    "SSS", # Sea Surface Salinity (psu)
-    "SSH", # Sea Surface Height (m)
-    "UVEL", # surface ocean current U Velocity (m/s)
-    "VVEL", # Surface ocean current V Velocity (m/s)
-    "SEAICE_THICKNESS" # Sea Ice Thickness (m)
-    ]
-GFS_sea_variables = ["ICEC", "SST", "SSS", "SSH", "UVEL", "VVEL", "SIC", "SEAICE_THICKNESS"]
-
-# GFS_variables = ["UGRD", "VGRD", "TMP", "VIS", "SLP", "PRES", "PRMSL", "GUST", "APCP", "DPT", "DSWRF", "SPFH"]
-GFS_variables = GFS_atmospheric_variables  + GFS_sea_variables
+# GFS_variables = ["UGRD", "VGRD", "TMP", "PRMSL"]
 #------------------------------------------------
 
 
