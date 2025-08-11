@@ -87,7 +87,7 @@ if __name__ == '__main__':
     print(f"Range dates: {args.start_date} to {end_date}")
 
     # Oout file name
-    output_filename = f"fmwam_wave_{args.start_date}_to_{end_date}.nc"
+    output_filename = f"fmwam_wave_{args.start_date}.nc"
 
     # Get domain
     domain = args.domain
