@@ -3,6 +3,8 @@
 """
 Single-time-step downloader for CMEMS FMWAM
 File name: fmwam_YYYY-MM-DD-HH.nc
+
+python -m script.get_mfwave --start_date --end_date --timestep_hours
 """
 
 from pathlib import Path
