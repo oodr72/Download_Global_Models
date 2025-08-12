@@ -9,7 +9,7 @@ Download GFS 0.25° GRIB2 files and convert them to NetCDF, keeping:
   • height‑above‑ground fields at 0 m, 2 m and 10 m
 
 All files for one run are stored in <outpath>/<YYYYMMDDHH>/.
-  
+
 Requires
 --------
 * requests

@@ -43,21 +43,33 @@ ECMWF_time_step = 6
 ECMWF_output_directory = "data/ecmwf"
 
 
+
 # FMWAM model parameters
 #------------------------------------------------
-# FMWAM_output_directory="/media/amilcar/STORE/DATA/OPERATIVE_MODELS/WAVE/Data_FMWAM"
-FMWAM_output_directory="data/fmwam"
+## FMWAM_output_directory="/media/amilcar/STORE/DATA/OPERATIVE_MODELS/WAVE/Data_FMWAM"
+#FMWAM_output_directory="data/fmwam"
+#FMWAM_variables = ["VHM0_WW", "VHM0_SW1", "VMDR_WW", "VMDR_SW1", "VTM01_WW", "VTM01_SW1"]
+#FMWAM_days_number = days_number  # 9 (number of days to forecast)
+#FMWAM_domain = domain_name
+
+# --- FMWAM single-step download options -----------------------------
+FMWAM_start_date     = "2024081200"   # YYYYMMDDHH
+FMWAM_end_date       = "2024081218"
+FMWAM_timestep_hours = 3
+FMWAM_domain         = "caribbean"
 FMWAM_variables = ["VHM0_WW", "VHM0_SW1", "VMDR_WW", "VMDR_SW1", "VTM01_WW", "VTM01_SW1"]
-FMWAM_days_number = days_number  # 9 (number of days to forecast)
-FMWAM_domain = domain_name
+FMWAM_output_directory = "./data/fmwam"
 #------------------------------------------------
 
 # GLORYS model parameters
 #------------------------------------------------
 # GLORYS_output_directory="/media/amilcar/STORE/DATA/OPERATIVE_MODELS/MARINE_CURRENT/Data_Glorys"
+GLORYS_start_date      = "2024081200"  # YYYYMMDDHH
+GLORYS_end_date        = "2024081223"
+GLORYS_timestep_hours  = 1
 GLORYS_output_directory = "data/glorys"
 GLORYS_variables = ["thetao", "uo", "vo"]
-GLORYS_days_number = days_number
+#GLORYS_days_number = days_number
 GLORYS_domain = domain_name
 GLORYS_minimum_depth=0.49402499198913574
 GLORYS_maximum_depth=0.49402499198913574
