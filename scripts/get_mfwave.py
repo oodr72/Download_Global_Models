@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 # coding: utf-8
+"""
+This script downloads and processes MFWave data
+Needs acces to the config file
+If the date is not provided as an argument, the script will use the current date
+Example:
+    python3 -m scripts.get_mfwave
+"""
 
 from pathlib import Path
 import sys
@@ -80,7 +87,7 @@ if __name__ == '__main__':
     print(f"Range dates: {args.start_date} to {end_date}")
 
     # Oout file name
-    output_filename = f"fmwam_wave_{args.start_date}_to_{end_date}.nc"
+    output_filename = f"fmwam_wave_{args.start_date}.nc"
 
     # Get domain
     domain = args.domain
