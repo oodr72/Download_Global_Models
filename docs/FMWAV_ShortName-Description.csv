@@ -1,0 +1,7 @@
+"Short Name","Description"
+"VHM0_WW","Significant Wave Height (SWH) of Wind Waves: Average height of the highest one-third of wind-generated waves"
+"VHM0_SW1","Significant Wave Height (SWH) of Primary Swell Waves: Average height of the highest one-third of primary swell waves"
+"VMDR_WW","Mean Wave Direction of Wind Waves: Prevailing direction from which wind waves are coming"
+"VMDR_SW1","Mean Wave Direction of Primary Swell Waves: Prevailing direction from which primary swell waves are coming"
+"VTM01_WW","Mean Wave Period of Wind Waves: Characteristic time interval between successive crests of wind waves"
+"VTM01_SW1","Mean Wave Period of Primary Swell Waves: Characteristic time interval between successive crests of primary swell waves"
