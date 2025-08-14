@@ -47,7 +47,14 @@ ECMWF_output_directory = "data/ecmwf"
 #------------------------------------------------
 # FMWAM_output_directory="/media/amilcar/STORE/DATA/OPERATIVE_MODELS/WAVE/Data_FMWAM"
 FMWAM_output_directory="data/fmwam"
-FMWAM_variables = ["VHM0_WW", "VHM0_SW1", "VMDR_WW", "VMDR_SW1", "VTM01_WW", "VTM01_SW1"]
+FMWAM_variables = [
+    "VHM0_WW", # Significant Wave Height (SWH) of Wind Waves
+    "VHM0_SW1", # Significant Wave Height (SWH) of Primary Swell Waves
+    "VMDR_WW",  # Mean Direction of Wind Waves
+    "VMDR_SW1", # Mean Direction of Primary Swell Waves
+    "VTM01_WW", # Mean Period of Wind Waves
+    "VTM01_SW1" # Mean Period of Primary Swell Waves
+    ]
 FMWAM_days_number = days_number  # 9 (number of days to forecast)
 FMWAM_domain = domain_name
 #------------------------------------------------
