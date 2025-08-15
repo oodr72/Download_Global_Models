@@ -46,7 +46,7 @@ def parse_cli():
 # ------------------------------------------------------------------
 def download_one_step(date: datetime, coords: dict, variables: list,
                       outpath: Path, disable_progress_bar=True):
-    """Download a single 3-hourly FMWAM step."""
+    """Download a single 3(6)-hourly FMWAM step."""
     minsize = 100  # KB
     outpath.mkdir(parents=True, exist_ok=True)
 
@@ -67,7 +67,7 @@ def download_one_step(date: datetime, coords: dict, variables: list,
         minimum_latitude=coords["lat_min"],
         maximum_latitude=coords["lat_max"],
         start_datetime=date.isoformat(timespec="seconds"),
-        end_datetime=(date + timedelta(hours=3)).isoformat(timespec="seconds"),
+        end_datetime=(date + timedelta(hours=6)).isoformat(timespec="seconds"),
         coordinates_selection_method="strict-inside",
         disable_progress_bar=disable_progress_bar,
         output_directory=str(outpath),
