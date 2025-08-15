@@ -26,20 +26,20 @@ GFS_time_step = 6 # [1, 3, 6]
 
 #------------------------------------------------
 # ECMWF Forecast Configuration
-# ECMWF_forecast_days = 3      # Forecast duration in days
-# ECMWF_run_hour = "00"         # Model run hour (00, 06, 12, 18)
-# ECMWF_output_directory = "data/ecmwf"
-# ECMWF_variables = ["UGRD", "VGRD", "TMP", "SPFH", "HGT"]
-# ECMWF_resolution = 0.25  # Grid resolution in degrees
-# ECMWF_time_step = 3  # Forecast step interval (hours)
-# ECMWF_domain = domain_name
-
-# ECMWF Configuration
-ECMWF_days_number = days_number
-ECMWF_domain = domain_name
-ECMWF_run_hour = "00"
-ECMWF_time_step = 6
+ECMWF_forecast_days = 3      # Forecast duration in days
+ECMWF_run_hour = "00"         # Model run hour (00, 06, 12, 18)
 ECMWF_output_directory = "data/ecmwf"
+ECMWF_variables = ["UGRD", "VGRD", "TMP", "SPFH", "HGT"]
+ECMWF_resolution = 0.25  # Grid resolution in degrees
+ECMWF_time_step = 3  # Forecast step interval (hours)
+ECMWF_domain = domain_name
+
+## ECMWF Configuration
+ECMWF_days_number = days_number
+#ECMWF_domain = domain_name
+#ECMWF_run_hour = "00"
+#ECMWF_time_step = 6
+#ECMWF_output_directory = "data/ecmwf"
 
 
 

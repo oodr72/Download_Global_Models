@@ -230,9 +230,9 @@ def _download_and_process(
     max_hour = min(240, days_number * 24)
 
     raw_dir = os.path.join(out_dir, "raw_downloads")
-    proc_dir = os.path.join(out_dir, f"{start_date}_{run_hour}")
+    #proc_dir = os.path.join(out_dir, f"{start_date}_{run_hour}")
     os.makedirs(raw_dir, exist_ok=True)
-    os.makedirs(proc_dir, exist_ok=True)
+    #os.makedirs(proc_dir, exist_ok=True)
 
     log_file = os.path.join(out_dir, "ecmwf_download.log")
     logging.basicConfig(
@@ -267,7 +267,8 @@ def _download_and_process(
         valid_dt = datetime.strptime(f"{start_date}{run_hour}", "%Y%m%d%H") + timedelta(hours=fh)
         valid_str = valid_dt.strftime("%Y%m%d%H")
         grib_path = os.path.join(raw_dir, fname)
-        nc_path = os.path.join(proc_dir, f"ecmwf_{valid_str}.nc")
+        #nc_path = os.path.join(proc_dir, f"ecmwf_{valid_str}.nc")
+        nc_path = os.path.join(out_dir, f"ecmwf_{valid_str}.nc")
 
         if os.path.exists(nc_path):
             logging.info("Skip existing %s", nc_path)
