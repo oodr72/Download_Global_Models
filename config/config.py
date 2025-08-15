@@ -54,7 +54,7 @@ ECMWF_output_directory = "data/ecmwf"
 # --- FMWAM single-step download options -----------------------------
 FMWAM_start_date     = "2024081200"   # YYYYMMDDHH
 FMWAM_end_date       = "2024081518"
-FMWAM_timestep_hours = 3
+FMWAM_timestep_hours = 6
 FMWAM_domain         = "caribbean"
 FMWAM_variables = ["VHM0_WW", "VHM0_SW1", "VMDR_WW", "VMDR_SW1", "VTM01_WW", "VTM01_SW1"]
 FMWAM_output_directory = "./data/fmwam"
@@ -65,7 +65,7 @@ FMWAM_output_directory = "./data/fmwam"
 # GLORYS_output_directory="/media/amilcar/STORE/DATA/OPERATIVE_MODELS/MARINE_CURRENT/Data_Glorys"
 GLORYS_start_date      = "2024081200"  # YYYYMMDDHH
 GLORYS_end_date        = "2024081223"
-GLORYS_timestep_hours  = 1
+GLORYS_timestep_hours  = 6
 GLORYS_output_directory = "data/glorys"
 GLORYS_variables = ["thetao", "uo", "vo"]
 #GLORYS_days_number = days_number
