@@ -18,7 +18,6 @@ GFS_variables = GFS_atmospheric_variables #+ GFS_sea_variables
 GFS_run_time =  "00" 
 GFS_timestep = 6 
 GFS_last_hour = number_of_hours # 16 days (384 hours)
-
 GFS_domain = domain_name
 GFS_days_number = days_number
 GFS_run_hour = "00" # ["00", "06", "12", "18"]
