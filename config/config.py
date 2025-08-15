@@ -55,7 +55,7 @@ ECMWF_output_directory = "data/ecmwf"
 FMWAM_start_date     = "2024081200"   # YYYYMMDDHH
 FMWAM_end_date       = "2024081518"
 FMWAM_timestep_hours = 6
-FMWAM_domain         = "caribbean"
+FMWAM_domain         = domain_name
 FMWAM_variables = ["VHM0_WW", "VHM0_SW1", "VMDR_WW", "VMDR_SW1", "VTM01_WW", "VTM01_SW1"]
 FMWAM_output_directory = "./data/fmwam"
 #------------------------------------------------

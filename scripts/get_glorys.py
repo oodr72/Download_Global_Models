@@ -3,6 +3,7 @@
 """
 Single-time-step downloader for CMEMS GLORYS
 File name: glorys024_YYYYMMDDHH.nc
+python -m scripts.get_glorys --start_date --end_date --timestep_hours
 """
 
 from pathlib import Path
@@ -64,7 +65,8 @@ def download_one_step(date: datetime, coords: dict, variables: list,
         minimum_depth=config.GLORYS_minimum_depth,
         maximum_depth=config.GLORYS_maximum_depth,
         start_datetime=date.isoformat(timespec="seconds"),
-        end_datetime=(date + timedelta(hours=1)).isoformat(timespec="seconds"),
+        #end_datetime=(date + timedelta(hours=1)).isoformat(timespec="seconds"),
+        end_datetime=date.isoformat(timespec="seconds"),
         coordinates_selection_method="strict-inside",
         disable_progress_bar=disable_progress_bar,
         output_directory=str(outpath),
