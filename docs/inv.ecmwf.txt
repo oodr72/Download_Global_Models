@@ -1,0 +1,17 @@
+netcdf ecmwf_2025081400 {
+dimensions:
+	time = UNLIMITED ; // (1 currently)
+	latitude = 181 ;
+	longitude = 365 ;
+variables:
+	double time(time) ;
+		time:units = "hours since 2025-08-15 14:16:39" ;
+	float latitude(latitude) ;
+	float longitude(longitude) ;
+	float \10_metre_u_wind_component(time, latitude, longitude) ;
+		\10_metre_u_wind_component:units = "m s**-1" ;
+	float \10_metre_v_wind_component(time, latitude, longitude) ;
+		\10_metre_v_wind_component:units = "m s**-1" ;
+	float \2_metre_temperature(time, latitude, longitude) ;
+		\2_metre_temperature:units = "K" ;
+}
