@@ -3,7 +3,7 @@
 # Set the domain name
 domain_name = "atlantic"
 # Set the number of days to forecast
-days_number = 5
+days_number = 3
 number_of_hours = days_number * 24
 
 # GFS model parameters
