@@ -158,7 +158,7 @@ def _process_with_pygrib(grib_path: str, nc_path: str, bbox: dict[str, float], f
     lons_sub = np.unique(lons[mask]); lons_sub.sort()
 
     with ncdf4Dataset(nc_path, "w", format="NETCDF4") as nc:
-        nc.createDimension("time", None)
+        nc.createDimension("time", 1)
         nc.createDimension("latitude", len(lats_sub))
         nc.createDimension("longitude", len(lons_sub))
 
@@ -175,6 +175,7 @@ def _process_with_pygrib(grib_path: str, nc_path: str, bbox: dict[str, float], f
             if variables and g.shortName not in variables:
                 continue
             base = g.name.replace(" ", "_").lower()
+            print(f"Creando variable NetCDF con nombre: {base}, shortName: {g.shortName}, original name: {g.name}") # test##
             if base in written:
                 base = f"{base}_{g.typeOfLevel}_{g.level}"
             i = 1
