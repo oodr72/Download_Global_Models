@@ -170,12 +170,13 @@ def _process_with_pygrib(grib_path: str, nc_path: str, bbox: dict[str, float], f
 
         written: set[str] = set()
         for g in grbs:
+            #logging.info(f"GRIB shortName: {g.shortName}, name: {g.name}, typeOfLevel: {g.typeOfLevel}") ## test
             if g.typeOfLevel not in {"surface", "meanSea", "heightAboveGround", "atmosphereSingleLayer", "depthBelowLand"}:
                 continue
             if variables and g.shortName not in variables:
                 continue
             base = g.name.replace(" ", "_").lower()
-            logging.info(f"Creando variable NetCDF con nombre: {base}, shortName: {g.shortName}, original name: {g.name}") ### test
+            #logging.info(f"Creando variable NetCDF con nombre: {base}, shortName: {g.shortName}, original name: {g.name}") ### test
             if base in written:
                 base = f"{base}_{g.typeOfLevel}_{g.level}"
             i = 1
