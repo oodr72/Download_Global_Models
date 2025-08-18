@@ -5,7 +5,7 @@ This script downloads and processes NOAA WW3 wave forecast data
 Needs acces to the config file
 If the date is not provided as an argument, the script will use the current date
 Example:
-    python3 -m scripts.get_ww3
+python -m scripts.get_ww3_noaa --start_date 20231001 --days_number 3 --domain global --run_hour 00 --time_step 6 --outpath ./ww3_data
 """
 import os
 import requests

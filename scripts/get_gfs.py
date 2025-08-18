@@ -5,18 +5,15 @@ downloading_gfs.py
 Download GFS 0.25° GRIB2 files and convert them to NetCDF, keeping:
 
   • surface fields
-  • mean‑sea‑level fields
-  • height‑above‑ground fields at 0 m, 2 m and 10 m
+  • mean-sea-level fields
+  • height-above-ground fields at 0 m, 2 m and 10 m
 
 All files for one run are stored in <outpath>/<YYYYMMDDHH>/.
 
-Requires
---------
-* requests
-* xarray + cfgrib  (default engine)
-* pygrib           (optional engine --engine pygrib)
-* netCDF4 / h5netcdf
-* eccodes libs on the system
+Example
+-------
+python -m scripts.get_gfs --start_date 20250805 --time 06 --engine pygrib
+python -m scripts.get_gfs --start_date 20250805 
 """
 from __future__ import annotations
 
@@ -26,11 +23,10 @@ import timeit
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Iterable
 
 import requests
-from config import config  # your project's config/config.py
-
+from config import config               # project-specific settings
 
 # ========================================================================= #
 # CLI                                                                       #
@@ -39,16 +35,17 @@ def parse_cli() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=(
             "Download GFS grids and convert to NetCDF keeping "
-            "surface, meanSea and heightAboveGround (0/2/10 m) fields."
+            "surface, meanSea and heightAboveGround (0/2/10 m) fields."
         )
     )
-    p.add_argument("--date", default=datetime.now(timezone.utc).strftime("%Y%m%d"),
+    p.add_argument("--start_date",
+                   default=datetime.now(timezone.utc).strftime("%Y%m%d"),
                    help='Initial date in "yyyymmdd"')
     p.add_argument("--time", default=config.GFS_run_time,
                    choices=["00", "06", "12", "18"],
                    help='Run initialisation ("00", "06", "12", "18")')
     p.add_argument("--timestep", type=int, default=config.GFS_timestep,
-                   help="Forecast‑hour step (h)")
+                   help="Forecast-hour step (h)")
     p.add_argument("--last_hour", type=int, default=int(config.GFS_last_hour),
                    help="Last forecast hour to fetch (inclusive)")
     p.add_argument("--variables", nargs="+", default=config.GFS_variables,
@@ -61,10 +58,9 @@ def parse_cli() -> argparse.Namespace:
                    help="Store files as GRIB2 (raw) or NetCDF (default)")
     p.add_argument("--keep-grib2", action="store_true",
                    help="When --format netcdf, keep the original GRIB2 files")
-    p.add_argument("--engine", choices=["cfgrib", "pygrib"], default="cfgrib",
+    p.add_argument("--engine", choices=["cfgrib", "pygrib"], default="pygrib",
                    help="Backend to read GRIB2 files")
     return p.parse_args()
-
 
 # ========================================================================= #
 # Helpers                                                                   #
@@ -76,7 +72,8 @@ def make_run_folder(root: str | Path, date: str, init: str) -> Path:
 
 
 def build_url(date: str, init: str, fhour: str, vars_string: str,
-              lon_left: float, lon_right: float, lat_top: float, lat_bottom: float) -> str:
+              lon_left: float, lon_right: float,
+              lat_top: float, lat_bottom: float) -> str:
     base = "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl"
     file_param = f"gfs.t{init}z.pgrb2.0p25.{fhour}"
     return (f"{base}?file={file_param}&{vars_string}"
@@ -87,7 +84,7 @@ def build_url(date: str, init: str, fhour: str, vars_string: str,
 
 def download_file(url: str, dest: Path, min_kb: int = 100) -> None:
     if dest.is_file() and dest.stat().st_size / 1024 > min_kb:
-        print(f"✔ {dest.name} exists ({dest.stat().st_size/1024:.0f} KB) – skipping")
+        print(f"✔ {dest.name} exists ({dest.stat().st_size/1024:.0f} KB) – skipping")
         return
     print(f"⇩  Downloading {dest.name} …")
     r = requests.get(url, timeout=60)
@@ -97,18 +94,15 @@ def download_file(url: str, dest: Path, min_kb: int = 100) -> None:
     else:
         raise RuntimeError(f"HTTP {r.status_code} while fetching {dest.name}")
 
-
 # ========================================================================= #
-# GRIB → NetCDF conversion helpers                                           #
+# GRIB → NetCDF conversion helpers                                          #
 # ========================================================================= #
 SURFACE_TYPES = {"surface", "meanSea"}
 HAG_TYPE = "heightAboveGround"
-HAG_LEVELS = {0, 2, 10}  # metres
+HAG_LEVELS = {0, 2, 10}           # metres
 
-# --------------------- cfgrib backend ------------------------------------ #
-def convert_with_cfgrib(
-    grib_path: Path, keep_grib: bool
-) -> Path:
+# ------------------------- cfgrib backend --------------------------------- #
+def convert_with_cfgrib(grib_path: Path, keep_grib: bool) -> Path:
     import xarray as xr
     import cfgrib
     import warnings
@@ -119,33 +113,32 @@ def convert_with_cfgrib(
         return nc_path
 
     idx = cfgrib.open_fileindex(str(grib_path))
-    # pre‑select messages we want
     wanted_msgs = [
-        msg for msg in idx if (
-            (msg["typeOfLevel"] in SURFACE_TYPES) or
-            (msg["typeOfLevel"] == HAG_TYPE and msg["level"] in HAG_LEVELS)
+        m for m in idx if (
+            (m["typeOfLevel"] in SURFACE_TYPES) or
+            (m["typeOfLevel"] == HAG_TYPE and m["level"] in HAG_LEVELS)
         )
     ]
     idx.close()
+
     if not wanted_msgs:
         raise RuntimeError("No desired messages found in file")
 
-    # split by (typeOfLevel, level) -----------------------------------------
     datasets = []
     for msg in wanted_msgs:
-        fkeys = {"typeOfLevel": msg["typeOfLevel"]}
+        keys = {"typeOfLevel": msg["typeOfLevel"]}
         if msg["typeOfLevel"] == HAG_TYPE:
-            fkeys["level"] = msg["level"]
+            keys["level"] = msg["level"]
 
         try:
             ds = xr.open_dataset(
                 grib_path,
                 engine="cfgrib",
-                backend_kwargs={"filter_by_keys": fkeys},
+                backend_kwargs={"filter_by_keys": keys},
             )
             datasets.append(ds)
         except Exception as exc:
-            warnings.warn(f"Skipped subset {fkeys}: {exc}")
+            warnings.warn(f"Skipped subset {keys}: {exc}")
 
     if not datasets:
         raise RuntimeError("cfgrib could not open any desired subset")
@@ -157,11 +150,8 @@ def convert_with_cfgrib(
         grib_path.unlink()
     return nc_path
 
-
-# --------------------- pygrib backend ------------------------------------ #
-def convert_with_pygrib(
-    grib_path: Path, keep_grib: bool
-) -> Path:
+# ------------------------- pygrib backend --------------------------------- #
+def convert_with_pygrib(grib_path: Path, keep_grib: bool) -> Path:
     import pygrib
     import numpy as np
     import xarray as xr
@@ -179,7 +169,7 @@ def convert_with_pygrib(
 
         for g in grbs:
             if g.typeOfLevel in SURFACE_TYPES:
-                store[g.shortName][0] = g                       # level 0 for 2‑D
+                store[g.shortName][0] = g
             elif g.typeOfLevel == HAG_TYPE and g.level in HAG_LEVELS:
                 store[g.shortName][g.level] = g
             # ignore everything else
@@ -189,7 +179,7 @@ def convert_with_pygrib(
 
         for short, msgs_by_level in store.items():
             levels = sorted(msgs_by_level)
-            msgs = [msgs_by_level[lev] for lev in levels]
+            msgs = [msgs_by_level[l] for l in levels]
             sample = msgs[0]
             lats, lons = sample.latlons()
 
@@ -204,7 +194,7 @@ def convert_with_pygrib(
                     name=short,
                     attrs=dict(units=sample.units, long_name=sample.name),
                 )
-            else:  # surface / meanSea
+            else:
                 da = xr.DataArray(
                     sample.values,
                     coords=dict(latitude=(("y", "x"), lats),
@@ -223,64 +213,53 @@ def convert_with_pygrib(
     return nc_path
 
 
-def convert_to_netcdf(
-    grib_path: Path,
-    keep_grib: bool,
-    engine: str,
-) -> Path:
+def convert_to_netcdf(grib_path: Path, keep_grib: bool, engine: str) -> Path:
     if engine == "pygrib":
         return convert_with_pygrib(grib_path, keep_grib)
-    else:
-        return convert_with_cfgrib(grib_path, keep_grib)
-
+    return convert_with_cfgrib(grib_path, keep_grib)
 
 # ========================================================================= #
 # Main logic                                                                #
 # ========================================================================= #
-def main(
-    date_str: str,
-    init_str: str,
-    timestep: int,
-    last_hour: int,
-    variables: Iterable[str],
-    run_dir: Path,
-    domain_coords: dict[str, float],
-    fmt: str,
-    keep_grib2: bool,
-    engine: str,
-) -> None:
+def main(*,
+         date_str: str,
+         init_str: str,
+         timestep: int,
+         last_hour: int,
+         variables: Iterable[str],
+         run_dir: Path,
+         domain_coords: dict[str, float],
+         fmt: str,
+         keep_grib2: bool,
+         engine: str) -> None:
+
     lon_left, lon_right = domain_coords["lon_min"], domain_coords["lon_max"]
     lat_top, lat_bottom = domain_coords["lat_max"], domain_coords["lat_min"]
 
     var_params = "&".join(f"var_{v}=on" for v in variables)
 
-    # analysis ----------------------------------------------------------------
-    anl_url = build_url(date_str, init_str, "anl", var_params,
-                        lon_left, lon_right, lat_top, lat_bottom)
-    anl_path = run_dir / f"gfs_{date_str}{init_str}.grb2"
-    download_file(anl_url, anl_path)
-
-    # forecasts ---------------------------------------------------------------
-    for fh in range(timestep, last_hour + timestep, timestep):
+    # --------------------------------------------------------------------- #
+    # 0-h forecast (f000) **replaces** the legacy analysis (*.anl) file
+    # --------------------------------------------------------------------- #
+    for fh in range(0, last_hour + timestep, timestep):
         fh_str = f"f{fh:03d}"
         forecast_date = (datetime.strptime(date_str + init_str, "%Y%m%d%H")
                          + timedelta(hours=fh)).strftime("%Y%m%d%H")
         fcst_path = run_dir / f"gfs_{forecast_date}.grb2"
-        fcst_url = build_url(date_str, init_str, fh_str, var_params,
-                             lon_left, lon_right, lat_top, lat_bottom)
+        fcst_url  = build_url(date_str, init_str, fh_str, var_params,
+                              lon_left, lon_right, lat_top, lat_bottom)
         download_file(fcst_url, fcst_path)
 
-    # convert -----------------------------------------------------------------
+    # --------------------------------------------------------------------- #
+    # Convert
+    # --------------------------------------------------------------------- #
     if fmt == "netcdf":
         print("\n=== Converting downloaded GRIB2 files to NetCDF ===")
         for grib in run_dir.glob("*.grb2"):
             try:
-                convert_to_netcdf(grib,
-                                  keep_grib=keep_grib2,
-                                  engine=engine)
+                convert_to_netcdf(grib, keep_grib2, engine)
             except Exception as exc:
                 print(f"⚠  {grib.name}: conversion failed ({exc})")
-
 
 # ========================================================================= #
 # Entrypoint                                                                #
@@ -288,13 +267,14 @@ def main(
 if __name__ == "__main__":
     opts = parse_cli()
 
+    # domain checks
     try:
         domain_coords = config.domains[opts.domain]
     except KeyError:
         print(f"Domain “{opts.domain}” not found; choose from {list(config.domains)}")
         sys.exit(1)
 
-    run_folder = make_run_folder(opts.outpath, opts.date, opts.time)
+    run_folder = make_run_folder(opts.outpath, opts.start_date, opts.time)
 
     print("\n=== PARAMETERS =====================================================")
     for k, v in vars(opts).items():
@@ -305,7 +285,7 @@ if __name__ == "__main__":
     t0 = timeit.default_timer()
 
     main(
-        date_str=opts.date,
+        date_str=opts.start_date,
         init_str=opts.time,
         timestep=opts.timestep,
         last_hour=opts.last_hour,
@@ -318,4 +298,4 @@ if __name__ == "__main__":
     )
 
     mins, secs = divmod(timeit.default_timer() - t0, 60)
-    print(f"\n✓ Done in {int(mins)} min {secs:.1f} s")
+    print(f"\n✓ Done in {int(mins)} min {secs:.1f} s")

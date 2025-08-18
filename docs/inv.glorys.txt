@@ -1,0 +1,69 @@
+netcdf glorys024_2025081400 {
+dimensions:
+	time = 1 ;
+	depth = 1 ;
+	latitude = 541 ;
+	longitude = 1093 ;
+variables:
+	float thetao(time, depth, latitude, longitude) ;
+		thetao:_FillValue = 9.96921e+36f ;
+		string thetao:unit_long = "Degrees Celsius" ;
+		thetao:valid_max = 40.f ;
+		string thetao:standard_name = "sea_water_potential_temperature" ;
+		string thetao:long_name = "sea_surface_temperature" ;
+		string thetao:units = "degrees_C" ;
+		thetao:valid_min = -10.f ;
+	float uo(time, depth, latitude, longitude) ;
+		uo:_FillValue = 9.96921e+36f ;
+		string uo:unit_long = "Meters per second" ;
+		uo:valid_max = 10.f ;
+		string uo:standard_name = "eastward_sea_water_velocity" ;
+		string uo:long_name = "Eastward surface velocity" ;
+		string uo:units = "m s-1" ;
+		uo:valid_min = -10.f ;
+	float vo(time, depth, latitude, longitude) ;
+		vo:_FillValue = 9.96921e+36f ;
+		string vo:unit_long = "Meters per second" ;
+		vo:valid_max = 10.f ;
+		string vo:standard_name = "northward_sea_water_velocity" ;
+		string vo:long_name = "Northward surface velocity" ;
+		string vo:units = "m s-1" ;
+		vo:valid_min = -10.f ;
+	float depth(depth) ;
+		string depth:unit_long = "Meters" ;
+		string depth:positive = "down" ;
+		string depth:standard_name = "depth" ;
+		string depth:long_name = "Depth" ;
+		string depth:axis = "Z" ;
+		string depth:units = "m" ;
+	float latitude(latitude) ;
+		string latitude:unit_long = "Degrees North" ;
+		string latitude:standard_name = "latitude" ;
+		string latitude:long_name = "Latitude" ;
+		string latitude:axis = "Y" ;
+		string latitude:units = "degrees_north" ;
+	float longitude(longitude) ;
+		string longitude:unit_long = "Degrees East" ;
+		string longitude:standard_name = "longitude" ;
+		string longitude:long_name = "Longitude" ;
+		string longitude:axis = "X" ;
+		string longitude:units = "degrees_east" ;
+	float time(time) ;
+		string time:standard_name = "time" ;
+		string time:unit_long = "Hours Since 1950-01-01" ;
+		string time:long_name = "Time" ;
+		string time:axis = "T" ;
+		string time:units = "hours since 1950-01-01" ;
+		string time:calendar = "gregorian" ;
+
+// global attributes:
+		string :institution = "Mercator Ocean International" ;
+		string :Conventions = "CF-1.8" ;
+		string :contact = "https://marine.copernicus.eu/contact" ;
+		string :credit = "E.U. Copernicus Marine Service Information (CMEMS)" ;
+		string :references = "http://marine.copernicus.eu" ;
+		string :source = "MOI GLO12" ;
+		string :producer = "CMEMS - Global Monitoring and Forecasting Centre" ;
+		string :title = "hourly mean fields from Global Ocean Physics Analysis and Forecast updated Daily" ;
+		string :copernicusmarine_version = "2.0.1" ;
+}
