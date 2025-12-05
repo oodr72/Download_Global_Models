@@ -4,23 +4,11 @@
 Download and subset ECMWF HRES (0.25°) forecast fields to a custom
 longitude/latitude box and write them to compressed NetCDF files.
 
-Changes 2025‑08‑07
+Changes 2025‑12‑03
 ------------------
-* **Fix pygrib sub‑setting** – convert longitude field to 0‑360 before
-  masking so dateline‑crossing domains work correctly (bug showed up as
-  725×181 grids instead of 365×181 for –90→1°E).
-* Replace deprecated `datetime.utcnow()` with timezone‑aware
-  `datetime.now(timezone.utc)`.
-
-Usage examples
---------------
-$ python -m scripts.get_ecmwf
-$ python -m scripts.get_ecmwf --start_date 20250805 \
-        --run_hour 12 --days_number 1 --time_step 3 \
-        --domain atlantic --variables 2t 10u 10v
-
-The script needs a ``config.py`` providing the keys documented in the
-header of the previous version.
+* Add file integrity check for existing NetCDF files
+* Skip download/processing only if file exists and is not corrupt
+* Fix date parsing to handle YYYY-MM-DD format
 """
 
 from __future__ import annotations
@@ -53,8 +41,9 @@ def _parse_arguments() -> argparse.Namespace:
         description="Download and subset ECMWF forecast data to a lon/lat box.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--start_date", type=str, default=datetime.now(timezone.utc).strftime("%Y%m%d"),
-                        help="Initial forecast date in YYYYMMDD format.")
+    parser.add_argument("--start_date", type=lambda s: re.sub(r'[^\d]', '', s), 
+                        default=datetime.now(timezone.utc).strftime("%Y%m%d"),
+                        help="Initial forecast date in YYYYMMDD or YYYY-MM-DD format.")
     parser.add_argument("--days_number", type=int, default=config.ECMWF_days_number,
                         help="Number of forecast days to download (max 10).")
     parser.add_argument("--domain", type=str, default=config.ECMWF_domain,
@@ -69,6 +58,8 @@ def _parse_arguments() -> argparse.Namespace:
                         help="Engine to use for GRIB→NetCDF conversion.")
     parser.add_argument("--variables", nargs="*", default=config.ECMWF_variables,
                         help="Space‑separated list of GRIB shortNames to retain (e.g. 2t 10u 10v).")
+    parser.add_argument("--force_redownload", action="store_true",
+                        help="Force re-download even if files exist (overwrites corrupt files too).")
     return parser.parse_args()
 
 # -----------------------------------------------------------------------------
@@ -96,6 +87,55 @@ def _remove_idx_files(grib_path: str) -> None:
             os.remove(idx)
         except OSError:
             pass
+
+# -----------------------------------------------------------------------------
+# File integrity check
+# -----------------------------------------------------------------------------
+
+def _is_valid_netcdf(filepath: str) -> bool:
+    """Check if a NetCDF file exists and is not corrupt."""
+    if not os.path.exists(filepath):
+        return False
+    
+    try:
+        # Try to open with netCDF4 first (more robust for basic checks)
+        with ncdf4Dataset(filepath, 'r') as nc:
+            # Check if file has basic structure
+            if not hasattr(nc, 'dimensions') or not hasattr(nc, 'variables'):
+                return False
+            
+            # Check for required dimensions
+            required_dims = ['time', 'latitude', 'longitude']
+            if not all(dim in nc.dimensions for dim in required_dims):
+                return False
+            
+            # Check if file has at least one data variable
+            has_data = False
+            for var_name in nc.variables:
+                if var_name not in required_dims:
+                    has_data = True
+                    # Quick check: try to read a small slice
+                    var = nc.variables[var_name]
+                    if hasattr(var, 'shape') and len(var.shape) >= 2:
+                        # Try to read first element
+                        try:
+                            # For 3D vars (time, lat, lon) or 4D (time, level, lat, lon)
+                            if len(var.shape) == 3:
+                                _ = var[0, 0, 0]
+                            elif len(var.shape) == 4:
+                                _ = var[0, 0, 0, 0]
+                        except:
+                            return False
+                    break
+            
+            if not has_data:
+                return False
+            
+            return True
+            
+    except Exception as e:
+        logging.debug(f"NetCDF file {filepath} is corrupt: {e}")
+        return False
 
 # -----------------------------------------------------------------------------
 # Subsetting routines
@@ -226,7 +266,12 @@ def _download_and_process(
     out_dir: str,
     engine: str,
     variables: Sequence[str] | None,
+    force_redownload: bool = False,
 ) -> str:
+    # Clean date string: remove any non-digit characters
+    start_date = re.sub(r'[^\d]', '', start_date)
+    
+    # Use the cleaned date for all operations
     max_hour = min(240, days_number * 24)
 
     raw_dir = os.path.join(out_dir, "raw_downloads")
@@ -243,7 +288,7 @@ def _download_and_process(
     )
 
     logging.info(
-        "Start ECMWF download: date=%s run=%sz range=0-%sh step=%s engine=%s vars=%s bbox=%s",
+        "Start ECMWF download: date=%s run=%sz range=0-%sh step=%s engine=%s vars=%s bbox=%s force=%s",
         start_date,
         run_hour,
         max_hour,
@@ -251,6 +296,7 @@ def _download_and_process(
         engine,
         "all" if not variables else " ".join(variables),
         bbox,
+        force_redownload,
     )
 
     urls = _generate_ecmwf_urls(start_date, run_hour, max_hour, time_step, variables)
@@ -269,9 +315,17 @@ def _download_and_process(
         grib_path = os.path.join(raw_dir, fname)
         nc_path = os.path.join(proc_dir, f"ecmwf_{valid_str}.nc")
 
-        if os.path.exists(nc_path):
-            logging.info("Skip existing %s", nc_path)
-            continue
+        # Check if file already exists and is valid ------------------------------------
+        if not force_redownload and os.path.exists(nc_path):
+            if _is_valid_netcdf(nc_path):
+                logging.info("Skip existing valid file: %s", nc_path)
+                continue
+            else:
+                logging.warning("File exists but appears corrupt. Will re-download: %s", nc_path)
+                try:
+                    os.remove(nc_path)
+                except OSError as e:
+                    logging.error("Failed to remove corrupt file %s: %s", nc_path, e)
 
         # download ---------------------------------------------------------------------
         try:
@@ -325,6 +379,7 @@ def main() -> None:  # pragma: no cover
         out_dir=args.outpath,
         engine=args.engine,
         variables=args.variables,
+        force_redownload=args.force_redownload,
     )
     elapsed = timeit.default_timer() - t0
     print(f"Finished in {elapsed/60:.1f} min – see log {log_file}")

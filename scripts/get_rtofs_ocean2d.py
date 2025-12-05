@@ -15,10 +15,11 @@ Priority:
 Supported canonical variables:
   SST, SSS, SSH, UVEL, VVEL, SIC, SEAICE_THICKNESS
 
-Examples:
-python3 -m scripts.get_rtofs_ocean2d --start_date 20250809 --timestep 6 --last_hour 24
-
-Requires: requests, xarray, netCDF4 (or h5netcdf), numpy
+Changes 2025-12-03:
+* Added file integrity checks
+* Skip existing files if not corrupt
+* Added force_redownload option
+* Enhanced logging and error handling
 """
 
 from __future__ import annotations
@@ -29,10 +30,12 @@ import timeit
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable, Dict, List, Tuple, Optional
-
+import re
 import numpy as np
 import requests
 import xarray as xr
+import logging
+from netCDF4 import Dataset as ncdf4Dataset
 
 from config import config  # expects domains and optional NCSS settings
 
@@ -41,8 +44,9 @@ def parse_cli() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Download RTOFS 2-D ocean variables with optional NCSS subsetting."
     )
-    p.add_argument("--start_date", default=datetime.now(timezone.utc).strftime("%Y%m%d"),
-                   help='Initial date "yyyymmdd" (RTOFS/HYCOM directory date)')
+    p.add_argument("--start_date", type=lambda s: re.sub(r'[^\d]', '', s), 
+                        default=datetime.now(timezone.utc).strftime("%Y%m%d"),
+                        help="Initial forecast date in YYYYMMDD or YYYY-MM-DD format.")
     p.add_argument("--time", default="00", choices=["00", "06", "12", "18"],
                    help="Nominal cycle (for output folder naming only).")
     p.add_argument("--timestep", type=int, default=getattr(config, "RTOFS_timestep", 6),
@@ -65,7 +69,20 @@ def parse_cli() -> argparse.Namespace:
                    help="(Only used when cropping) Write one file per time or a single combined file")
     p.add_argument("--bbox", type=str, default=None,
                    help='Override bbox as "lon_min lon_max lat_min lat_max" (quotes required)')
+    p.add_argument("--force_redownload", action='store_true',
+                   help='Force re-download even if files exist')
+    p.add_argument("--log_level", choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
+                   default='INFO', help='Set the logging level')
     return p.parse_args()
+
+# ============================ Logging Setup ============================== #
+def setup_logging(log_level='INFO'):
+    """Setup logging configuration"""
+    logging.basicConfig(
+        level=getattr(logging, log_level),
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
 
 # ============================ Constants & Maps ============================= #
 # Canonical → RTOFS 2ds NetCDF variable names (native)
@@ -109,6 +126,90 @@ RTOFS_NCSS_DATASET = getattr(config, "RTOFS_NCSS_DATASET", None)     # e.g., ful
 HYCOM_NCSS_BASE    = getattr(config, "HYCOM_NCSS_BASE", "https://ncss.hycom.org/thredds/ncss")
 HYCOM_NCSS_DATASET = getattr(config, "HYCOM_NCSS_DATASET", "GLBy0.08/expt_93.0/analysis")
 
+# ============================ File Integrity ============================== #
+def is_valid_netcdf(file_path: Path, expected_variables: Optional[List[str]] = None, 
+                   min_size_kb: int = 100) -> bool:
+    """
+    Check if a NetCDF file exists and is not corrupt.
+    
+    Args:
+        file_path: Path to the NetCDF file
+        expected_variables: List of expected variable names (optional)
+        min_size_kb: Minimum file size in KB to be considered valid
+        
+    Returns:
+        bool: True if file is valid, False otherwise
+    """
+    if not file_path.exists():
+        logging.debug(f"File does not exist: {file_path}")
+        return False
+    
+    # Check file size
+    file_size_kb = file_path.stat().st_size / 1024
+    if file_size_kb < min_size_kb:
+        logging.warning(f"File too small ({file_size_kb:.1f} KB < {min_size_kb} KB): {file_path}")
+        return False
+    
+    try:
+        # Try to open with netCDF4
+        with ncdf4Dataset(file_path, 'r') as nc:
+            # Check basic structure
+            if not hasattr(nc, 'dimensions') or not hasattr(nc, 'variables'):
+                logging.debug(f"File lacks basic NetCDF structure: {file_path}")
+                return False
+            
+            # Check if file has at least one data variable
+            data_vars = [var for var in nc.variables if var not in ['time', 'latitude', 'longitude', 'lat', 'lon', 'Longitude', 'Latitude']]
+            if not data_vars:
+                logging.debug(f"No data variables found: {file_path}")
+                return False
+            
+            # Check expected variables if provided
+            if expected_variables:
+                nc_vars = list(nc.variables.keys())
+                missing_vars = [var for var in expected_variables if var not in nc_vars]
+                if missing_vars:
+                    # Check if at least some expected variables are present
+                    found_vars = [var for var in expected_variables if var in nc_vars]
+                    if not found_vars:
+                        logging.warning(f"No expected variables found in {file_path}")
+                        return False
+            
+            # Try to read a small sample of data from the first variable
+            first_var = data_vars[0]
+            var_data = nc.variables[first_var]
+            
+            # Check variable shape and try to read first element
+            if hasattr(var_data, 'shape'):
+                try:
+                    # For 3D vars (time, lat, lon)
+                    if len(var_data.shape) == 3:
+                        _ = var_data[0, 0, 0]
+                    # For 2D vars (lat, lon)
+                    elif len(var_data.shape) == 2:
+                        _ = var_data[0, 0]
+                except (IndexError, ValueError, TypeError) as e:
+                    logging.debug(f"Failed to read data sample from {first_var}: {e}")
+                    return False
+            
+            logging.debug(f"File validation passed: {file_path}")
+            return True
+            
+    except Exception as e:
+        logging.warning(f"NetCDF file appears corrupt ({file_path}): {e}")
+        return False
+
+def remove_corrupt_file(file_path: Path):
+    """Safely remove a corrupt file"""
+    try:
+        if file_path.exists():
+            file_path.unlink()
+            logging.info(f"Removed corrupt file: {file_path}")
+            return True
+    except Exception as e:
+        logging.error(f"Failed to remove corrupt file {file_path}: {e}")
+    return False
+
 # ============================ Helpers ===================================== #
 def parse_bbox(s: Optional[str]) -> Optional[Tuple[float, float, float, float]]:
     if not s:
@@ -133,20 +234,37 @@ def rtofs_url_candidates(date: str, filename: str) -> List[str]:
     path = f"rtofs.{date}/{filename}"
     return [f"{NOMADS_ROOT}/{path}", f"{AWS_ROOT}/{path}"]
 
-def download_one(url: str, dest: Path, min_kb: int) -> bool:
-    if dest.is_file() and dest.stat().st_size / 1024 > min_kb:
-        print(f"✔ {dest.name} exists ({dest.stat().st_size/1024:.0f} KB) – skipping")
-        return True
+def download_one(url: str, dest: Path, min_kb: int, force: bool = False) -> bool:
+    """Download a single file with integrity check"""
+    # Check if we should skip download
+    if dest.exists() and not force:
+        if is_valid_netcdf(dest, min_size_kb=min_kb):
+            file_size_mb = dest.stat().st_size / (1024 * 1024)
+            logging.info(f"✔ {dest.name} exists and is valid ({file_size_mb:.2f} MB) – skipping")
+            return True
+        else:
+            logging.warning(f"File exists but appears corrupt: {dest}")
+            remove_corrupt_file(dest)
+    
     try:
+        logging.info(f"Downloading from {url}")
         r = requests.get(url, timeout=120)
         if r.status_code == 200 and r.content:
             dest.write_bytes(r.content)
-            print(f"   Saved {dest}")
-            return True
-        print(f"   … HTTP {r.status_code} at {url}")
+            
+            # Verify downloaded file
+            if is_valid_netcdf(dest, min_size_kb=min_kb):
+                file_size_mb = dest.stat().st_size / (1024 * 1024)
+                logging.info(f"Saved {dest} ({file_size_mb:.2f} MB)")
+                return True
+            else:
+                logging.error(f"Downloaded file appears corrupt: {dest}")
+                remove_corrupt_file(dest)
+                return False
+        logging.warning(f"… HTTP {r.status_code} at {url}")
         return False
     except requests.RequestException as e:
-        print(f"   … request error at {url}: {e}")
+        logging.error(f"… request error at {url}: {e}")
         return False
 
 def subset_bbox_2d(ds: xr.Dataset,
@@ -156,7 +274,7 @@ def subset_bbox_2d(ds: xr.Dataset,
     lon_name = next((n for n in lon_candidates if n in ds.variables or n in ds.coords), None)
     lat_name = next((n for n in lat_candidates if n in ds.variables or n in ds.coords), None)
     if lon_name is None or lat_name is None:
-        print("⚠ could not find lon/lat; returning dataset unchanged")
+        logging.warning("Could not find lon/lat; returning dataset unchanged")
         return ds
     lon2d = ds[lon_name].values
     lat2d = ds[lat_name].values
@@ -168,11 +286,11 @@ def subset_bbox_2d(ds: xr.Dataset,
         lon_max = lon_max if lon_max >= 0 else lon_max + 360
     mask = (lon2d >= lon_min) & (lon2d <= lon_max) & (lat2d >= lat_min) & (lat2d <= lat_max)
     if mask.sum() == 0:
-        print("⚠ bbox mask empty; returning dataset unchanged")
+        logging.warning("Bbox mask empty; returning dataset unchanged")
         return ds
     dims = list(ds[lon_name].dims)
     if len(dims) != 2:
-        print("⚠ lon/lat not 2-D; returning dataset unchanged")
+        logging.warning("Lon/lat not 2-D; returning dataset unchanged")
         return ds
     yy, xx = np.where(mask)
     y_min, y_max = int(yy.min()), int(yy.max())
@@ -209,31 +327,63 @@ def build_hycom_ncss_url(time_dt: datetime,
 def try_fetch_hycom_ncss(time_dt: datetime,
                          bbox: Tuple[float, float, float, float],
                          vars_canon: List[str],
-                         dest: Path) -> bool:
+                         dest: Path,
+                         force: bool = False) -> bool:
+    """Fetch HYCOM data via NCSS with integrity check"""
+    
+    # Check if file already exists and is valid
+    if dest.exists() and not force:
+        if is_valid_netcdf(dest, min_size_kb=100):
+            logging.info(f"HYCOM NCSS file exists and is valid: {dest.name}")
+            return True
+        else:
+            logging.warning(f"HYCOM NCSS file exists but appears corrupt: {dest}")
+            remove_corrupt_file(dest)
+    
     vars_hycom = [CANON_TO_HYCOM[v] for v in vars_canon if v in CANON_TO_HYCOM]
     if not vars_hycom:
         return False
     url = build_hycom_ncss_url(time_dt, bbox, vars_hycom)
-    print(f"⇩  HYCOM NCSS → {dest.name}\n    {url}")
+    logging.info(f"Fetching HYCOM NCSS → {dest.name}")
     try:
         r = requests.get(url, timeout=180)
         if r.status_code == 200 and r.content:
             dest.write_bytes(r.content)
-            print(f"   Saved {dest}")
-            return True
-        print(f"   … HYCOM NCSS HTTP {r.status_code}")
+            
+            # Verify downloaded file
+            if is_valid_netcdf(dest, min_size_kb=100):
+                logging.info(f"Saved {dest}")
+                return True
+            else:
+                logging.error(f"Downloaded HYCOM NCSS file appears corrupt: {dest}")
+                remove_corrupt_file(dest)
+                return False
+        logging.warning(f"HYCOM NCSS HTTP {r.status_code}")
         return False
     except requests.RequestException as e:
-        print(f"   … HYCOM NCSS error: {e}")
+        logging.error(f"HYCOM NCSS error: {e}")
         return False
 
 def try_fetch_rtofs_ncss(time_dt: datetime,
                          bbox: Tuple[float, float, float, float],
                          vars_canon: List[str],
-                         dest: Path) -> bool:
+                         dest: Path,
+                         force: bool = False) -> bool:
+    """Fetch RTOFS data via NCSS with integrity check"""
+    
     dataset = getattr(config, "RTOFS_NCSS_DATASET", None)
     if not dataset:
         return False
+    
+    # Check if file already exists and is valid
+    if dest.exists() and not force:
+        if is_valid_netcdf(dest, min_size_kb=100):
+            logging.info(f"RTOFS NCSS file exists and is valid: {dest.name}")
+            return True
+        else:
+            logging.warning(f"RTOFS NCSS file exists but appears corrupt: {dest}")
+            remove_corrupt_file(dest)
+    
     base = dataset if dataset.startswith("http") else f"{dataset}"
     vars_rtofs = [CANON_TO_RTOFS[v] for v in vars_canon if v in CANON_TO_RTOFS]
     north = bbox[3]; south = bbox[2]; east = bbox[1]; west = bbox[0]
@@ -249,34 +399,55 @@ def try_fetch_rtofs_ncss(time_dt: datetime,
     )
     qs = "&".join(f"{k}={requests.utils.quote(v)}" for k, v in params)
     url = f"{base}?{qs}"
-    print(f"⇩  RTOFS NCSS → {dest.name}\n    {url}")
+    logging.info(f"Fetching RTOFS NCSS → {dest.name}")
     try:
         r = requests.get(url, timeout=180)
         if r.status_code == 200 and r.content:
             dest.write_bytes(r.content)
-            print(f"   Saved {dest}")
-            return True
-        print(f"   … RTOFS NCSS HTTP {r.status_code}")
+            
+            # Verify downloaded file
+            if is_valid_netcdf(dest, min_size_kb=100):
+                logging.info(f"Saved {dest}")
+                return True
+            else:
+                logging.error(f"Downloaded RTOFS NCSS file appears corrupt: {dest}")
+                remove_corrupt_file(dest)
+                return False
+        logging.warning(f"RTOFS NCSS HTTP {r.status_code}")
         return False
     except requests.RequestException as e:
-        print(f"   … RTOFS NCSS error: {e}")
+        logging.error(f"RTOFS NCSS error: {e}")
         return False
 
 # ------------- RTOFS full-file download & local crop ---------------------- #
-def fetch_rtofs_family(date: str, fh: int, family: str, run_dir: Path, min_kb: int) -> Optional[Path]:
+def fetch_rtofs_family(date: str, fh: int, family: str, run_dir: Path, min_kb: int, force: bool = False) -> Optional[Path]:
+    """Download RTOFS family file with integrity check"""
     fname = rtofs_family_filename(fh, family)
     dest = run_dir / fname
-    print(f"⇩  {fname}")
-    for u in rtofs_url_candidates(date, fname):
-        if download_one(u, dest, min_kb):
+    
+    # Check if file already exists and is valid
+    if dest.exists() and not force:
+        if is_valid_netcdf(dest, min_size_kb=min_kb):
+            file_size_mb = dest.stat().st_size / (1024 * 1024)
+            logging.info(f"RTOFS family file exists and is valid: {fname} ({file_size_mb:.2f} MB)")
             return dest
+        else:
+            logging.warning(f"RTOFS family file exists but appears corrupt: {dest}")
+            remove_corrupt_file(dest)
+    
+    logging.info(f"Downloading RTOFS family file: {fname}")
+    for u in rtofs_url_candidates(date, fname):
+        if download_one(u, dest, min_kb, force):
+            return dest
+    
     # Fallbacks for ICE naming variations seen on some mirrors
     if family == "ice":
         for alt in (f"rtofs_glo_2ds_f{fh:03d}_ice.nc",
                     f"rtofs_glo_3dz_f{fh:03d}_ice.nc"):
             dest_alt = run_dir / alt
+            logging.info(f"Trying alternative ICE file: {alt}")
             for u in rtofs_url_candidates(date, alt):
-                if download_one(u, dest_alt, min_kb):
+                if download_one(u, dest_alt, min_kb, force):
                     return dest_alt
     return None
 
@@ -293,7 +464,7 @@ def local_crop_and_merge_rtofs(family_files: List[Path],
         try:
             ds = xr.open_dataset(f, engine=engine)
         except Exception as exc:
-            print(f"⚠  failed to open {f.name}: {exc}")
+            logging.error(f"Failed to open {f.name}: {exc}")
             continue
         subset = subset_bbox_2d(ds, bbox) if bbox is not None else ds
         present = {v: subset[v] for v in wanted_rtofs if v in subset.variables}
@@ -324,7 +495,8 @@ def main(*,
          engine: str,
          min_kb: int,
          combine_into: str,
-         bbox_cli: Optional[Tuple[float, float, float, float]]) -> None:
+         bbox_cli: Optional[Tuple[float, float, float, float]],
+         force_redownload: bool = False) -> None:
 
     # Resolve bbox & whether we intend server-side subsetting
     server_subset_intent = False
@@ -333,23 +505,41 @@ def main(*,
     if bbox_cli is not None:
         bbox = bbox_cli
         server_subset_intent = True
-        print(f"→ Using --bbox {bbox} (server-side first)")
+        logging.info(f"Using --bbox {bbox} (server-side first)")
     elif domain_coords is not None:
         bbox = (domain_coords["lon_min"], domain_coords["lon_max"],
                 domain_coords["lat_min"], domain_coords["lat_max"])
         server_subset_intent = True
-        print(f"→ Using domain bbox {bbox} from config.domains (server-side first)")
+        logging.info(f"Using domain bbox {bbox} from config.domains (server-side first)")
     else:
-        print("→ No --bbox and no --domain: will download full RTOFS files (no server-side subsetting)")
+        logging.info("No --bbox and no --domain: will download full RTOFS files (no server-side subsetting)")
 
     vars_canon = [v.upper() for v in variables]
     out_list = []
+    
+    # Track statistics
+    stats = {
+        'total': 0,
+        'skipped': 0,
+        'downloaded': 0,
+        'processed': 0,
+        'failed': 0
+    }
 
     for fh in range(0, last_hour + 1, timestep):
+        stats['total'] += 1
         vdt = valid_time(date_str, init_str, fh)
         out_path = run_dir / build_output_name(vdt)
 
-        print(f"\n=== FH {fh:03d} → valid {vdt:%Y-%m-%d %H:%MZ} =========================")
+        logging.info(f"=== FH {fh:03d} → valid {vdt:%Y-%m-%d %H:%MZ} ===")
+
+        # Check if output file already exists and is valid (for per_time mode)
+        if combine_into == "per_time" and out_path.exists() and not force_redownload:
+            if is_valid_netcdf(out_path, expected_variables=vars_canon, min_size_kb=min_kb):
+                file_size_mb = out_path.stat().st_size / (1024 * 1024)
+                logging.info(f"Output file exists and is valid: {out_path.name} ({file_size_mb:.2f} MB) – skipping")
+                stats['skipped'] += 1
+                continue
 
         ds_final: Optional[xr.Dataset] = None
 
@@ -358,30 +548,32 @@ def main(*,
             tmp_nc = run_dir / f"_tmp_rtofs_ncss_{vdt:%Y%m%d%H}.nc"
             got = False
             if RTOFS_NCSS_DATASET:
-                if try_fetch_rtofs_ncss(vdt, bbox, vars_canon, tmp_nc):
+                if try_fetch_rtofs_ncss(vdt, bbox, vars_canon, tmp_nc, force_redownload):
                     try:
                         ds = xr.open_dataset(tmp_nc, engine=engine)
                         rename_map = {CANON_TO_RTOFS[k]: k for k in vars_canon if k in CANON_TO_RTOFS}
                         ds = rename_vars(ds, rename_map)
                         ds_final = ds
                         got = True
+                        stats['downloaded'] += 1
                     except Exception as exc:
-                        print(f"⚠  failed to open RTOFS NCSS file: {exc}")
+                        logging.error(f"Failed to open RTOFS NCSS file: {exc}")
                     finally:
                         tmp_nc.unlink(missing_ok=True)
 
             # (A2) HYCOM NCSS
             if not got:
                 tmp_nc = run_dir / f"_tmp_hycom_ncss_{vdt:%Y%m%d%H}.nc"
-                if try_fetch_hycom_ncss(vdt, bbox, vars_canon, tmp_nc):
+                if try_fetch_hycom_ncss(vdt, bbox, vars_canon, tmp_nc, force_redownload):
                     try:
                         ds = xr.open_dataset(tmp_nc, engine=engine)
                         rename_map = {CANON_TO_HYCOM[k]: k for k in vars_canon if k in CANON_TO_HYCOM}
                         ds = rename_vars(ds, rename_map)
                         ds_final = ds
                         got = True
+                        stats['downloaded'] += 1
                     except Exception as exc:
-                        print(f"⚠  failed to open HYCOM NCSS file: {exc}")
+                        logging.error(f"Failed to open HYCOM NCSS file: {exc}")
                     finally:
                         tmp_nc.unlink(missing_ok=True)
 
@@ -390,11 +582,12 @@ def main(*,
                 families_needed = sorted({FAMILY_BY_CANON[v] for v in vars_canon if v in FAMILY_BY_CANON})
                 family_files: List[Path] = []
                 for fam in families_needed:
-                    local = fetch_rtofs_family(date_str, fh, fam, run_dir, min_kb)
+                    local = fetch_rtofs_family(date_str, fh, fam, run_dir, min_kb, force_redownload)
                     if local:
                         family_files.append(local)
+                        stats['downloaded'] += 1
                     else:
-                        print(f"⚠  missing RTOFS {fam} for fh={fh}")
+                        logging.warning(f"Missing RTOFS {fam} for fh={fh}")
                 ds_final = local_crop_and_merge_rtofs(family_files, vars_canon, engine, bbox, vdt)
 
         else:
@@ -402,37 +595,90 @@ def main(*,
             families_needed = sorted({FAMILY_BY_CANON[v] for v in vars_canon if v in FAMILY_BY_CANON})
             got_any = False
             for fam in families_needed:
-                path = fetch_rtofs_family(date_str, fh, fam, run_dir, min_kb)
-                got_any = got_any or bool(path)
+                path = fetch_rtofs_family(date_str, fh, fam, run_dir, min_kb, force_redownload)
+                if path:
+                    got_any = True
+                    stats['downloaded'] += 1
             if not got_any:
-                print("⚠  nothing gathered for this FH; skipping")
+                logging.warning("Nothing gathered for this FH; skipping")
+                stats['failed'] += 1
             # continue to next FH (skip writing ocean2d_*.nc)
             if combine_into == "per_time":
                 # In this mode without bbox/domain we don't create merged tiles.
                 continue
 
         if ds_final is None:
-            print("⚠  nothing gathered for this FH; skipping")
+            logging.warning("Nothing gathered for this FH; skipping")
+            stats['failed'] += 1
             continue
 
         if combine_into == "per_time":
-            encoding = {vn: {"zlib": True, "complevel": 3} for vn in ds_final.data_vars}
-            ds_final.to_netcdf(out_path, engine=engine, encoding=encoding)
-            print(f"   NetCDF saved: {out_path}")
-            ds_final.close()
+            try:
+                encoding = {vn: {"zlib": True, "complevel": 3} for vn in ds_final.data_vars}
+                ds_final.to_netcdf(out_path, engine=engine, encoding=encoding)
+                
+                # Verify the saved file
+                if is_valid_netcdf(out_path, expected_variables=vars_canon, min_size_kb=min_kb):
+                    file_size_mb = out_path.stat().st_size / (1024 * 1024)
+                    logging.info(f"NetCDF saved: {out_path} ({file_size_mb:.2f} MB)")
+                    stats['processed'] += 1
+                else:
+                    logging.error(f"Saved file appears corrupt: {out_path}")
+                    remove_corrupt_file(out_path)
+                    stats['failed'] += 1
+                    
+                ds_final.close()
+            except Exception as e:
+                logging.error(f"Failed to save file {out_path}: {e}")
+                stats['failed'] += 1
         else:
             out_list.append(ds_final)
+            stats['processed'] += 1
 
     if combine_into == "single_file" and out_list:
-        big = xr.concat(out_list, dim="time")
-        combined = run_dir / f"ocean2d_{date_str}{init_str}_fh{0:03d}-{last_hour:03d}.nc"
-        encoding = {vn: {"zlib": True, "complevel": 3} for vn in big.data_vars}
-        big.to_netcdf(combined, engine=engine, encoding=encoding)
-        print(f"\n   Combined NetCDF saved: {combined}")
+        try:
+            big = xr.concat(out_list, dim="time")
+            combined = run_dir / f"ocean2d_{date_str}{init_str}_fh{0:03d}-{last_hour:03d}.nc"
+            
+            # Check if combined file already exists and is valid
+            if combined.exists() and not force_redownload:
+                if is_valid_netcdf(combined, expected_variables=vars_canon, min_size_kb=min_kb):
+                    file_size_mb = combined.stat().st_size / (1024 * 1024)
+                    logging.info(f"Combined file exists and is valid: {combined} ({file_size_mb:.2f} MB)")
+                else:
+                    logging.warning(f"Combined file exists but appears corrupt, will overwrite")
+                    remove_corrupt_file(combined)
+            
+            encoding = {vn: {"zlib": True, "complevel": 3} for vn in big.data_vars}
+            big.to_netcdf(combined, engine=engine, encoding=encoding)
+            
+            # Verify the saved file
+            if is_valid_netcdf(combined, expected_variables=vars_canon, min_size_kb=min_kb):
+                file_size_mb = combined.stat().st_size / (1024 * 1024)
+                logging.info(f"Combined NetCDF saved: {combined} ({file_size_mb:.2f} MB)")
+            else:
+                logging.error(f"Saved combined file appears corrupt: {combined}")
+                remove_corrupt_file(combined)
+        except Exception as e:
+            logging.error(f"Failed to create combined file: {e}")
+
+    # Print summary
+    summary_msg = (
+        f"\nDownload Summary:\n"
+        f"  Total forecast hours: {stats['total']}\n"
+        f"  Skipped (valid existing): {stats['skipped']}\n"
+        f"  Downloaded: {stats['downloaded']}\n"
+        f"  Processed: {stats['processed']}\n"
+        f"  Failed: {stats['failed']}"
+    )
+    logging.info(summary_msg)
 
 # ============================ Entrypoint =================================== #
 if __name__ == "__main__":
     opts = parse_cli()
+    
+    # Setup logging
+    setup_logging(opts.log_level)
 
     # domain is optional now
     domain_coords = None
@@ -440,7 +686,7 @@ if __name__ == "__main__":
         try:
             domain_coords = config.domains[opts.domain]
         except KeyError:
-            print(f"⚠ Domain “{opts.domain}” not found in config.domains; continuing without it")
+            logging.warning(f"Domain '{opts.domain}' not found in config.domains; continuing without it")
             domain_coords = None
 
     bbox_cli = parse_bbox(opts.bbox)
@@ -448,17 +694,17 @@ if __name__ == "__main__":
     run_folder = (Path(opts.outpath).expanduser().resolve() / f"{opts.start_date}{opts.time}")
     run_folder.mkdir(parents=True, exist_ok=True)
 
-    print("\n=== PARAMETERS =====================================================")
+    logging.info("=== PARAMETERS ===")
     for k, v in vars(opts).items():
-        print(f"{k:14s}: {v}")
-    print(f"run_folder   : {run_folder}")
+        logging.info(f"{k:14s}: {v}")
+    logging.info(f"run_folder   : {run_folder}")
     if bbox_cli is not None:
-        print(f"bbox_resolved: {bbox_cli}")
+        logging.info(f"bbox_resolved: {bbox_cli}")
     elif domain_coords is not None:
-        print(f"bbox_resolved: {(domain_coords['lon_min'], domain_coords['lon_max'], domain_coords['lat_min'], domain_coords['lat_max'])}")
+        logging.info(f"bbox_resolved: {(domain_coords['lon_min'], domain_coords['lon_max'], domain_coords['lat_min'], domain_coords['lat_max'])}")
     else:
-        print("bbox_resolved: None (full files mode)")
-    print("====================================================================\n")
+        logging.info("bbox_resolved: None (full files mode)")
+    logging.info("==================\n")
 
     t0 = timeit.default_timer()
 
@@ -474,7 +720,8 @@ if __name__ == "__main__":
         min_kb=opts.min_kb,
         combine_into=opts.combine_into,
         bbox_cli=bbox_cli,
+        force_redownload=opts.force_redownload,
     )
 
     mins, secs = divmod(timeit.default_timer() - t0, 60)
-    print(f"\n✓ Done in {int(mins)} min {secs:.1f} s")
+    logging.info(f"\nDone in {int(mins)} min {secs:.1f} s")
