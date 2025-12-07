@@ -32,10 +32,10 @@ def parse_cli():
                    default=datetime.now(timezone.utc).strftime("%Y%m%d%H"),
                    help="Initial date YYYYMMDDHH or YYYY-MM-DD-HH format")
     p.add_argument("--end_date", type=lambda s: re.sub(r'[^\d]', '', s),
-                   default=(datetime.now(timezone.utc)+timedelta(days=1)).strftime("%Y%m%d%H"),
+                   default=None,
                    help="Final date YYYYMMDDHH or YYYY-MM-DD-HH format")
-    p.add_argument('--days_number', type=int, default=config.GLORYS_days_number, 
-                   help='Number of days to download')
+    p.add_argument('--last_hour', type=int, default=config.GLORYS_last_hour, 
+                   help='Number of hour to download')
     p.add_argument("--timestep_hours", type=int,
                    default=config.GLORYS_time_step,
                    help="Time-step between files (h)")
@@ -270,30 +270,48 @@ def main():
         sys.exit(1)
     
     # --- date loop --------------------------------------------------
-    if args.days_number is not None:
-        args.end_date = (datetime.strptime(args.start_date, "%Y%m%d%H") + 
-                         timedelta(days=args.days_number)).strftime("%Y%m%d%H")
+    start = datetime.strptime(args.start_date, "%Y%m%d%H")
+    if args.end_date is None:
+        if args.last_hour is None:
+            logging.error("No end_date or last_hour provided")
+            sys.exit(1)
+        end = start + timedelta(hours=args.last_hour)
+        logging.info(f"No end_date provided, setting end_date to {end.strftime('%Y%m%d%H')} based on last_hour: {args.last_hour}")
+    else:
+        end = datetime.strptime(args.end_date, "%Y%m%d%H")
+        logging.info(f"Using end_date: {end.strftime('%Y%m%d%H')}")
     
-    if args.start_date > args.end_date:
+    # Adjust end_date if it's greater than the last available hour
+    print(f"Adjusted end_date to: {start} based on last_hour: {args.last_hour}")
+    print(f"Final end_date: {end}")
+    if start > end:
         logging.error("Start date must be before end date")
         sys.exit(1)
-    start = datetime.strptime(args.start_date, "%Y%m%d%H")
-    end   = datetime.strptime(args.end_date, "%Y%m%d%H")
-    step  = timedelta(hours=args.timestep_hours)
 
-    try:
-        coords = config.domains[args.domain]
-        logging.info(f"Using domain '{args.domain}': {coords}")
-    except KeyError:
+    
+    # --- domain -----------------------------------------------------
+    if args.domain not in config.domains:
         logging.error(f"Domain '{args.domain}' not found in config")
         logging.error("Available domains: %s", list(config.domains.keys()))
         sys.exit(1)
+    else:
+    # Get domain coordinates
+        try:
+            coords = config.domains[args.domain]
+            logging.info(f"Using domain '{args.domain}': {coords}")
+        except KeyError:
+            logging.error(f"Domain '{args.domain}' not found in config")
+            logging.error("Available domains: %s", list(config.domains.keys()))
+            sys.exit(1)
     
     # Calculate total steps for progress tracking
+    step = timedelta(hours=args.timestep_hours)
     total_steps = ((end - start) // step) + 1
     logging.info(f"Processing {total_steps} time steps from {start} to {end}")
     
+    # Create output directory
     out_dir = Path(args.outpath)
+    out_dir.mkdir(parents=True, exist_ok=True)
     
     # Track statistics
     stats = {

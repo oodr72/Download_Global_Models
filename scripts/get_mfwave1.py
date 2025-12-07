@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # coding: utf-8
 """
-This script downloads and processes GLORYS data
+This script downloads and processes MFWave data
 Needs acces to the config file
 If the date is not provided as an argument, the script will use the current date
 Example:
-    python3 -m scripts.get_glorys
+    python3 -m scripts.get_mfwave
 """
 
 from pathlib import Path
@@ -14,27 +14,27 @@ import sys
 import copernicusmarine
 from src.files_functions import get_copernicus_key
 from datetime import datetime, timedelta, timezone
-import os
+import os 
 from config import config
 import argparse
-import timeit
 import logging
+import timeit
 from netCDF4 import Dataset as ncdf4Dataset
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description='Download CMEMS physical oceanography files')
+    parser = argparse.ArgumentParser(description='Download MFWave files')
     parser.add_argument("--start_date", type=lambda s: re.sub(r'[^\d]', '', s), 
                         default=datetime.now(timezone.utc).strftime("%Y%m%d"),
                         help="Initial forecast date in YYYYMMDD or YYYY-MM-DD format.")
-    parser.add_argument('--days_number', type=int, default=config.GLORYS_days_number, 
+    parser.add_argument('--days_number', type=int, default=config.FMWAM_days_number, 
                         help='Number of days to download')
-    parser.add_argument('--domain', type=str, default=config.GLORYS_domain, 
-                        help='Domain name from config')
-    parser.add_argument('--variables', nargs='+', default=config.GLORYS_variables,
-                        help='List of variables to download')
-    parser.add_argument('--outpath', type=str, default=config.GLORYS_output_directory,
-                        help='Output directory for downloaded files')
+    parser.add_argument('--domain', type=str, default=config.FMWAM_domain, 
+                        help='Name of the domain')
+    parser.add_argument('--variables', nargs='+', default=config.FMWAM_variables, 
+                        help='List of variables to be saved')
+    parser.add_argument('--outpath', type=str, default=config.FMWAM_output_directory, 
+                        help='Folder where downloaded files will be saved')
     parser.add_argument('--force_redownload', action='store_true',
                         help='Force re-download even if files exist')
     parser.add_argument('--log_level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
@@ -106,11 +106,8 @@ def is_valid_netcdf(file_path, expected_variables=None, min_size_kb=100):
             # Check variable shape and try to read first element
             if hasattr(var_data, 'shape'):
                 try:
-                    # For 4D vars (time, depth, lat, lon)
-                    if len(var_data.shape) == 4:
-                        _ = var_data[0, 0, 0, 0]
-                    # For 3D vars (time, lat, lon) - surface variables
-                    elif len(var_data.shape) == 3:
+                    # For 3D vars (time, lat, lon) - wave variables
+                    if len(var_data.shape) == 3:
                         _ = var_data[0, 0, 0]
                     # For 2D vars (lat, lon)
                     elif len(var_data.shape) == 2:
@@ -124,8 +121,8 @@ def is_valid_netcdf(file_path, expected_variables=None, min_size_kb=100):
             if time_var is not None:
                 try:
                     time_data = time_var[:]
-                    if len(time_data) == 0 or not all(time_data.mask == False):
-                        logging.debug(f"Time variable has invalid data in {file_path}")
+                    if len(time_data) == 0:
+                        logging.debug(f"Time variable has no data in {file_path}")
                         return False
                 except:
                     logging.debug(f"Failed to read time variable in {file_path}")
@@ -148,10 +145,28 @@ def remove_corrupt_file(file_path):
         logging.error(f"Failed to remove corrupt file {file_path}: {e}")
     return False
 
-def download_cmems(start_date, end_date, coordinates, variables, output_filename, outpath, 
+def check_copernicus_credentials():
+    """Check and configure Copernicus Marine credentials"""
+    credentials_path = Path.home() / ".copernicusmarine" / ".copernicusmarine-credentials"
+    
+    if not credentials_path.exists():
+        logging.info("No Copernicus Marine credentials found, configuring...")
+        try:
+            user, key, _ = get_copernicus_key()
+            copernicusmarine.login(username=user, password=key)
+            logging.info("Copernicus Marine credentials configured successfully")
+            return True
+        except Exception as e:
+            logging.error(f"Failed to configure Copernicus Marine credentials: {e}")
+            return False
+    else:
+        logging.debug("Using existing Copernicus Marine credentials")
+        return True
+
+def download_fmwam(start_date, end_date, coordinates, variables, output_filename, outpath, 
                    force_redownload=False, disable_progress_bar=True):
     """
-    Download CMEMS data with file integrity checks
+    Download MFWave data with file integrity checks
     
     Args:
         start_date: Start date in YYYYMMDD format
@@ -179,7 +194,8 @@ def download_cmems(start_date, end_date, coordinates, variables, output_filename
     # Check if file exists and is valid
     if os.path.exists(full_path) and not force_redownload:
         if is_valid_netcdf(full_path, expected_variables=variables, min_size_kb=minsize_kb):
-            logging.info(f"Skipping download - valid file exists: {full_path}")
+            file_size_mb = os.path.getsize(full_path) / (1024 * 1024)
+            logging.info(f"Skipping download - valid file exists: {full_path} ({file_size_mb:.2f} MB)")
             return True
         else:
             logging.warning(f"File exists but appears corrupt: {full_path}")
@@ -193,18 +209,20 @@ def download_cmems(start_date, end_date, coordinates, variables, output_filename
     logging.info(f"Downloading {output_filename}...")
     
     try:
+        # Ensure variables is a list
+        if isinstance(variables, str):
+            variables = [variables]
+        
         copernicusmarine.subset(
-            dataset_id="cmems_mod_glo_phy_anfc_0.083deg_PT1H-m",
-            dataset_version="202406",
+            dataset_id="cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+            dataset_version="202411",
             variables=variables,
             minimum_longitude=coordinates["lon_min"],
             maximum_longitude=coordinates["lon_max"],
             minimum_latitude=coordinates["lat_min"],
             maximum_latitude=coordinates["lat_max"],
-            minimum_depth=config.GLORYS_minimum_depth,
-            maximum_depth=config.GLORYS_maximum_depth,
             start_datetime=f"{start_date}T00:00:00",
-            end_datetime=f"{end_date}T23:00:00",
+            end_datetime=f"{end_date}T23:59:00",
             coordinates_selection_method="strict-inside",
             disable_progress_bar=disable_progress_bar,
             output_directory=outpath,
@@ -232,25 +250,7 @@ def download_cmems(start_date, end_date, coordinates, variables, output_filename
             remove_corrupt_file(full_path)
         return False
 
-def check_copernicus_credentials():
-    """Check and configure Copernicus Marine credentials"""
-    credentials_path = Path.home() / ".copernicusmarine" / ".copernicusmarine-credentials"
-    
-    if not credentials_path.exists():
-        logging.info("No Copernicus Marine credentials found, configuring...")
-        try:
-            user, key, _ = get_copernicus_key()
-            copernicusmarine.login(username=user, password=key)
-            logging.info("Copernicus Marine credentials configured successfully")
-            return True
-        except Exception as e:
-            logging.error(f"Failed to configure Copernicus Marine credentials: {e}")
-            return False
-    else:
-        logging.debug("Using existing Copernicus Marine credentials")
-        return True
-
-if __name__ == '__main__':
+def main():
     args = parse_arguments()
     
     # Setup logging
@@ -269,19 +269,19 @@ if __name__ == '__main__':
     # Calculate end date
     start_date_obj = datetime.strptime(args.start_date, "%Y%m%d")
     end_date_obj = start_date_obj + timedelta(days=args.days_number)
-    end_date = end_date_obj.strftime("%Y%m%d")
+    end_date_str = end_date_obj.strftime("%Y%m%d")
     
-    logging.info(f"Date range: {args.start_date} to {end_date}")
+    logging.info(f"Date range: {args.start_date} to {end_date_str}")
     logging.info(f"Total days: {args.days_number}")
 
     # Configure output filename
-    output_filename = f"glorys024_uv_{args.start_date}.nc"
+    output_filename = f"fmwam_wave_{args.start_date}.nc"
     logging.info(f"Output filename: {output_filename}")
 
     # Get domain coordinates
     try:
-        domain_coords = config.domains[args.domain]
-        logging.info(f"Using domain '{args.domain}': {domain_coords}")
+        coordinates = config.domains[args.domain]
+        logging.info(f"Using domain '{args.domain}': {coordinates}")
     except KeyError:
         logging.error(f"Domain '{args.domain}' not found in configuration")
         logging.error("Available domains: %s", list(config.domains.keys()))
@@ -290,10 +290,10 @@ if __name__ == '__main__':
     # Execute download with timing
     start_time = timeit.default_timer()
     
-    success = download_cmems(
+    success = download_fmwam(
         start_date=args.start_date,
-        end_date=end_date,
-        coordinates=domain_coords,
+        end_date=end_date_str,
+        coordinates=coordinates,
         variables=args.variables,
         output_filename=output_filename,
         outpath=args.outpath,
@@ -310,3 +310,6 @@ if __name__ == '__main__':
     else:
         logging.error(f"Download failed after {int(minutes)}m {seconds:.2f}s")
         sys.exit(1)
+
+if __name__ == '__main__':
+    main()

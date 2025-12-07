@@ -9,6 +9,23 @@ Changes 2025‑12‑03
 * Add file integrity check for existing NetCDF files
 * Skip download/processing only if file exists and is not corrupt
 * Fix date parsing to handle YYYY-MM-DD format
+
+Usage:
+    python get_ecmwf.py [--start_date YYYYMMDD] [--days_number N]
+                        [--domain DOMAIN_NAME] [--run_hour HH]
+                        [--time_step HOURS] [--outpath PATH]
+                        [--engine cfgrib|pygrib] [--variables VAR1 VAR2 ...]
+                        [--force_redownload]
+Options:
+    --start_date: Initial forecast date in YYYYMMDD or YYYY-MM-DD format.
+    --days_number: Number of forecast days to download (max 10).
+    --domain: Domain name defined in config.domains.
+    --run_hour: IFS run hour (00, 06, 12 or 18).
+    --time_step: Time‑step between forecast files in hours.
+    --outpath: Base output directory.
+    --engine: Engine to use for GRIB→NetCDF conversion (cfgrib or pygrib).
+    --variables: Space‑separated list of GRIB shortNames to retain (e.g. 2t 10u 10v).
+    --force_redownload: Force re-download even if files exist (overwrites corrupt files too).
 """
 
 from __future__ import annotations
@@ -20,6 +37,7 @@ import os
 import re
 import sys
 import timeit
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import Sequence
 from urllib.parse import urlparse
@@ -61,6 +79,14 @@ def _parse_arguments() -> argparse.Namespace:
     parser.add_argument("--force_redownload", action="store_true",
                         help="Force re-download even if files exist (overwrites corrupt files too).")
     return parser.parse_args()
+
+# -----------------------------------------------------------------------------
+# Folder creation
+#  -----------------------------------------------------------------------------
+def make_run_folder(root: str | Path, date: str, init: str) -> Path:
+    run_dir = Path(root).expanduser().resolve() / f"{date}_{init}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    return run_dir
 
 # -----------------------------------------------------------------------------
 # URL generation
@@ -275,7 +301,8 @@ def _download_and_process(
     max_hour = min(240, days_number * 24)
 
     raw_dir = os.path.join(out_dir, "raw_downloads")
-    proc_dir = os.path.join(out_dir, f"{start_date}_{run_hour}")
+    # proc_dir = os.path.join(out_dir, f"{start_date}_{run_hour}")
+    proc_dir = out_dir
     os.makedirs(raw_dir, exist_ok=True)
     os.makedirs(proc_dir, exist_ok=True)
 
@@ -362,6 +389,10 @@ def main() -> None:  # pragma: no cover
     print("Execution parameters:")
     for k, v in vars(args).items():
         print(f"  {k}: {v}")
+
+    args.outpath = make_run_folder(args.outpath, args.start_date, args.run_hour)
+    if not os.path.exists(args.outpath):
+        os.makedirs(args.outpath)
 
     if args.domain not in config.domains:
         print(f"Domain '{args.domain}' not in config.domains; available: {list(config.domains)}")

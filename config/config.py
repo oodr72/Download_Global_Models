@@ -11,8 +11,10 @@ domain_name = "atlantic" # ["atlantic", "mediterranean", "arctic", "north_atlant
 # Set the number of days to forecast
 days_number = 1 # [1, 3, 6]
 time_step = 6  # Time step in hours
-# Calculate the total number of hours for the forecast
-number_of_hours = days_number * 24
+
+# Calculate the last hour and total number of hours for the forecast
+last_hour = days_number * 24 # Latest forecast hour
+number_of_hours = last_hour / time_step # Total number of forecast hours
 #------------------------------------------------
 
 
@@ -22,7 +24,7 @@ number_of_hours = days_number * 24
 GFS_output_directory="data/gfs"
 GFS_run_time =  "00" # ["00", "06", "12", "18"]
 GFS_timestep = time_step # [1, 3, 6]
-GFS_last_hour = number_of_hours # 16 days (384 hours)
+GFS_last_hour = last_hour # 16 days (384 hours)
 GFS_domain = domain_name
 
 # GFS atmospheric variables
@@ -50,7 +52,7 @@ GFS_variables = [
 RTOFS_output_directory = "data/rtofs"
 RTOFS_run_time = "00" # ["00", "06", "12", "18"]
 RTOFS_timestep = time_step # [1, 3, 6]
-RTOFS_last_hour = number_of_hours # 16 days (72 hours)
+RTOFS_last_hour = last_hour # 16 days (72 hours) 
 RTOFS_days_number = days_number
 RTOFS_domain = domain_name
 
@@ -78,6 +80,7 @@ ECMWF_days_number = days_number
 ECMWF_domain = domain_name
 ECMWF_run_hour = "12"
 ECMWF_time_step = time_step
+ECMWF_last_hour = last_hour
 ECMWF_output_directory = "data/ecmwf"
 ECMWF_variables = [
     "2t", # 2m temperature (K)
@@ -117,6 +120,7 @@ FMWAM_variables = [
     "VTM01_SW1" # Mean Period of Primary Swell Waves
     ]
 FMWAM_days_number = days_number  # 9 (number of days to forecast)
+FMWAM_last_hour = last_hour
 FMWAM_domain = domain_name
 #------------------------------------------------
 
@@ -125,6 +129,7 @@ FMWAM_domain = domain_name
 # GLORYS_output_directory="/media/amilcar/STORE/DATA/OPERATIVE_MODELS/MARINE_CURRENT/Data_Glorys"
 GLORYS_output_directory = "data/glorys"
 GLORYS_days_number = days_number
+GLORYS_last_hour = last_hour
 GLORYS_time_step = time_step
 GLORYS_domain = domain_name
 GLORYS_minimum_depth=0.49402499198913574
@@ -147,6 +152,7 @@ GLORYS_variables = ["uo", "vo"]
 
 # HYCOM Configuration
 HYCOM_days_number = days_number
+HYCOM_last_hour = last_hour
 HYCOM_domain = domain_name
 HYCOM_output_directory = "data/hycom"
 HYCOM_time_step = time_step
