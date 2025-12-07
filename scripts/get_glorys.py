@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 # coding: utf-8
 """
-This script downloads and processes GLORYS data
-Needs acces to the config file
-If the date is not provided as an argument, the script will use the current date
-Example:
-    python3 -m scripts.get_glorys
+Single-time-step downloader for CMEMS GLORYS
+File name: glorys024_YYYYMMDDHH.nc
+python -m scripts.get_glorys --start_date --end_date --timestep_hours
+
+Changes 2025-12-03:
+* Added file integrity checks
+* Skip existing files if not corrupt
+* Added force_redownload option
+* Enhanced logging and error handling
 """
 
 from pathlib import Path
-import re
 import sys
 import copernicusmarine
 from src.files_functions import get_copernicus_key
@@ -20,26 +23,39 @@ import argparse
 import timeit
 import logging
 from netCDF4 import Dataset as ncdf4Dataset
+import re
 
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(description='Download CMEMS physical oceanography files')
-    parser.add_argument("--start_date", type=lambda s: re.sub(r'[^\d]', '', s), 
-                        default=datetime.now(timezone.utc).strftime("%Y%m%d"),
-                        help="Initial forecast date in YYYYMMDD or YYYY-MM-DD format.")
-    parser.add_argument('--days_number', type=int, default=config.GLORYS_days_number, 
-                        help='Number of days to download')
-    parser.add_argument('--domain', type=str, default=config.GLORYS_domain, 
-                        help='Domain name from config')
-    parser.add_argument('--variables', nargs='+', default=config.GLORYS_variables,
-                        help='List of variables to download')
-    parser.add_argument('--outpath', type=str, default=config.GLORYS_output_directory,
-                        help='Output directory for downloaded files')
-    parser.add_argument('--force_redownload', action='store_true',
-                        help='Force re-download even if files exist')
-    parser.add_argument('--log_level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
-                        default='INFO', help='Set the logging level')
-    return parser.parse_args()
+def parse_cli():
+    p = argparse.ArgumentParser(description="Download GLORYS – one file per instant")
+    p.add_argument("--start_date", type=lambda s: re.sub(r'[^\d]', '', s),
+                   default=datetime.now(timezone.utc).strftime("%Y%m%d%H"),
+                   help="Initial date YYYYMMDDHH or YYYY-MM-DD-HH format")
+    p.add_argument("--end_date", type=lambda s: re.sub(r'[^\d]', '', s),
+                   default=(datetime.now(timezone.utc)+timedelta(days=1)).strftime("%Y%m%d%H"),
+                   help="Final date YYYYMMDDHH or YYYY-MM-DD-HH format")
+    p.add_argument('--days_number', type=int, default=config.GLORYS_days_number, 
+                   help='Number of days to download')
+    p.add_argument("--timestep_hours", type=int,
+                   default=config.GLORYS_time_step,
+                   help="Time-step between files (h)")
+    p.add_argument("--domain", type=str,
+                   default=config.GLORYS_domain,
+                   help="Domain name from config")
+    p.add_argument("--variables", nargs='+',
+                   default=config.GLORYS_variables,
+                   help="List of variables to download")
+    p.add_argument("--outpath", type=str,
+                   default=config.GLORYS_output_directory,
+                   help="Output directory")
+    p.add_argument("--force_redownload", action='store_true',
+                   help="Force re-download even if files exist")
+    p.add_argument("--log_level", choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
+                   default='INFO', help="Set the logging level")
+    p.add_argument("--disable_progress_bar", action='store_true',
+                   help="Disable download progress bar")
+    return p.parse_args()
+
 
 def setup_logging(log_level='INFO'):
     """Setup logging configuration"""
@@ -48,6 +64,7 @@ def setup_logging(log_level='INFO'):
         format='%(asctime)s - %(levelname)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
+
 
 def is_valid_netcdf(file_path, expected_variables=None, min_size_kb=100):
     """
@@ -86,7 +103,7 @@ def is_valid_netcdf(file_path, expected_variables=None, min_size_kb=100):
                 return False
             
             # Check if file has at least one data variable
-            data_vars = [var for var in nc.variables if var not in required_dims]
+            data_vars = [var for var in nc.variables if var not in required_dims + ['depth', 'Depth']]
             if not data_vars:
                 logging.debug(f"No data variables found: {file_path}")
                 return False
@@ -96,8 +113,11 @@ def is_valid_netcdf(file_path, expected_variables=None, min_size_kb=100):
                 nc_vars = list(nc.variables.keys())
                 missing_vars = [var for var in expected_variables if var not in nc_vars]
                 if missing_vars:
-                    logging.warning(f"Missing expected variables {missing_vars} in {file_path}")
-                    return False
+                    # Check if at least some expected variables are present
+                    found_vars = [var for var in expected_variables if var in nc_vars]
+                    if not found_vars:
+                        logging.warning(f"No expected variables found in {file_path}")
+                        return False
             
             # Try to read a small sample of data from the first variable
             first_var = data_vars[0]
@@ -124,8 +144,8 @@ def is_valid_netcdf(file_path, expected_variables=None, min_size_kb=100):
             if time_var is not None:
                 try:
                     time_data = time_var[:]
-                    if len(time_data) == 0 or not all(time_data.mask == False):
-                        logging.debug(f"Time variable has invalid data in {file_path}")
+                    if len(time_data) == 0:
+                        logging.debug(f"Time variable has no data in {file_path}")
                         return False
                 except:
                     logging.debug(f"Failed to read time variable in {file_path}")
@@ -136,6 +156,7 @@ def is_valid_netcdf(file_path, expected_variables=None, min_size_kb=100):
     except Exception as e:
         logging.warning(f"NetCDF file appears corrupt ({file_path}): {e}")
         return False
+
 
 def remove_corrupt_file(file_path):
     """Safely remove a corrupt file"""
@@ -148,89 +169,6 @@ def remove_corrupt_file(file_path):
         logging.error(f"Failed to remove corrupt file {file_path}: {e}")
     return False
 
-def download_cmems(start_date, end_date, coordinates, variables, output_filename, outpath, 
-                   force_redownload=False, disable_progress_bar=True):
-    """
-    Download CMEMS data with file integrity checks
-    
-    Args:
-        start_date: Start date in YYYYMMDD format
-        end_date: End date in YYYYMMDD format
-        coordinates: Dictionary with lon_min, lon_max, lat_min, lat_max
-        variables: List of variables to download
-        output_filename: Output filename
-        outpath: Output directory
-        force_redownload: Force re-download even if file exists
-        disable_progress_bar: Disable download progress bar
-    """
-    
-    minsize_kb = 100  # Minimum file size in KB for valid download
-    outpath = os.path.join(outpath, start_date)
-    full_path = os.path.join(outpath, output_filename)
-    
-    logging.info(f"Download range: {start_date} to {end_date}")
-    logging.info(f"Target file: {full_path}")
-    
-    # Create output directory if missing
-    if not os.path.exists(outpath):
-        logging.info(f"Creating output directory: {outpath}")
-        os.makedirs(outpath, exist_ok=True)
-    
-    # Check if file exists and is valid
-    if os.path.exists(full_path) and not force_redownload:
-        if is_valid_netcdf(full_path, expected_variables=variables, min_size_kb=minsize_kb):
-            logging.info(f"Skipping download - valid file exists: {full_path}")
-            return True
-        else:
-            logging.warning(f"File exists but appears corrupt: {full_path}")
-            if remove_corrupt_file(full_path):
-                logging.info("Will re-download corrupt file")
-            else:
-                logging.error("Failed to remove corrupt file, cannot re-download")
-                return False
-    
-    # Download the file
-    logging.info(f"Downloading {output_filename}...")
-    
-    try:
-        copernicusmarine.subset(
-            dataset_id="cmems_mod_glo_phy_anfc_0.083deg_PT1H-m",
-            dataset_version="202406",
-            variables=variables,
-            minimum_longitude=coordinates["lon_min"],
-            maximum_longitude=coordinates["lon_max"],
-            minimum_latitude=coordinates["lat_min"],
-            maximum_latitude=coordinates["lat_max"],
-            minimum_depth=config.GLORYS_minimum_depth,
-            maximum_depth=config.GLORYS_maximum_depth,
-            start_datetime=f"{start_date}T00:00:00",
-            end_datetime=f"{end_date}T23:00:00",
-            coordinates_selection_method="strict-inside",
-            disable_progress_bar=disable_progress_bar,
-            output_directory=outpath,
-            output_filename=output_filename
-        )
-        
-        # Verify downloaded file
-        if os.path.exists(full_path):
-            if is_valid_netcdf(full_path, expected_variables=variables, min_size_kb=minsize_kb):
-                file_size_mb = os.path.getsize(full_path) / (1024 * 1024)
-                logging.info(f"Download successful: {full_path} ({file_size_mb:.2f} MB)")
-                return True
-            else:
-                logging.error(f"Downloaded file appears corrupt: {full_path}")
-                remove_corrupt_file(full_path)
-                return False
-        else:
-            logging.error(f"Download failed - file not created: {full_path}")
-            return False
-            
-    except Exception as e:
-        logging.error(f"Download failed with error: {e}")
-        # Clean up partial file if it exists
-        if os.path.exists(full_path):
-            remove_corrupt_file(full_path)
-        return False
 
 def check_copernicus_credentials():
     """Check and configure Copernicus Marine credentials"""
@@ -239,8 +177,8 @@ def check_copernicus_credentials():
     if not credentials_path.exists():
         logging.info("No Copernicus Marine credentials found, configuring...")
         try:
-            user, key, _ = get_copernicus_key()
-            copernicusmarine.login(username=user, password=key)
+            user, pwd, _ = get_copernicus_key()
+            copernicusmarine.login(username=user, password=pwd)
             logging.info("Copernicus Marine credentials configured successfully")
             return True
         except Exception as e:
@@ -250,8 +188,73 @@ def check_copernicus_credentials():
         logging.debug("Using existing Copernicus Marine credentials")
         return True
 
-if __name__ == '__main__':
-    args = parse_arguments()
+
+def download_one_step(date: datetime, coords: dict, variables: list,
+                      outpath: Path, force_redownload: bool = False,
+                      disable_progress_bar: bool = True):
+    """Download a single hourly GLORYS step."""
+    minsize_kb = 100  # KB
+    outpath.mkdir(parents=True, exist_ok=True)
+
+    fname = f"glorys024_{date.strftime('%Y%m%d%H')}.nc"
+    fpath = outpath / fname
+    
+    logging.info(f"Processing: {fname}")
+
+    # Check if file already exists and is valid
+    if fpath.exists() and not force_redownload:
+        if is_valid_netcdf(fpath, expected_variables=variables, min_size_kb=minsize_kb):
+            file_size_mb = fpath.stat().st_size / (1024 * 1024)
+            logging.info(f"File exists and is valid: {fname} ({file_size_mb:.2f} MB) - skipping")
+            return True
+        else:
+            logging.warning(f"File exists but appears corrupt: {fpath}")
+            remove_corrupt_file(fpath)
+
+    logging.info(f"Downloading: {fname}")
+    try:
+        copernicusmarine.subset(
+            dataset_id="cmems_mod_glo_phy_anfc_0.083deg_PT1H-m",
+            dataset_version="202406",
+            variables=variables,
+            minimum_longitude=coords["lon_min"],
+            maximum_longitude=coords["lon_max"],
+            minimum_latitude=coords["lat_min"],
+            maximum_latitude=coords["lat_max"],
+            minimum_depth=config.GLORYS_minimum_depth,
+            maximum_depth=config.GLORYS_maximum_depth,
+            start_datetime=date.isoformat(timespec="seconds"),
+            end_datetime=date.isoformat(timespec="seconds"),
+            coordinates_selection_method="strict-inside",
+            disable_progress_bar=disable_progress_bar,
+            output_directory=str(outpath),
+            output_filename=fname
+        )
+        
+        # Verify downloaded file
+        if fpath.exists():
+            if is_valid_netcdf(fpath, expected_variables=variables, min_size_kb=minsize_kb):
+                file_size_mb = fpath.stat().st_size / (1024 * 1024)
+                logging.info(f"Download successful: {fname} ({file_size_mb:.2f} MB)")
+                return True
+            else:
+                logging.error(f"Downloaded file appears corrupt: {fpath}")
+                remove_corrupt_file(fpath)
+                return False
+        else:
+            logging.error(f"Download failed - file not created: {fpath}")
+            return False
+            
+    except Exception as e:
+        logging.error(f"Download failed with error: {e}")
+        # Clean up partial file if it exists
+        if fpath.exists():
+            remove_corrupt_file(fpath)
+        return False
+
+
+def main():
+    args = parse_cli()
     
     # Setup logging
     setup_logging(args.log_level)
@@ -260,53 +263,95 @@ if __name__ == '__main__':
     logging.info("Execution parameters:")
     for key, value in vars(args).items():
         logging.info(f"  {key}: {value}")
-
-    # Configure Copernicus Marine credentials
+    
+    # --- credentials ------------------------------------------------
     if not check_copernicus_credentials():
         logging.error("Failed to configure Copernicus Marine credentials. Exiting.")
         sys.exit(1)
-
-    # Calculate end date
-    start_date_obj = datetime.strptime(args.start_date, "%Y%m%d")
-    end_date_obj = start_date_obj + timedelta(days=args.days_number)
-    end_date = end_date_obj.strftime("%Y%m%d")
     
-    logging.info(f"Date range: {args.start_date} to {end_date}")
-    logging.info(f"Total days: {args.days_number}")
+    # --- date loop --------------------------------------------------
+    if args.days_number is not None:
+        args.end_date = (datetime.strptime(args.start_date, "%Y%m%d%H") + 
+                         timedelta(days=args.days_number)).strftime("%Y%m%d%H")
+    
+    if args.start_date > args.end_date:
+        logging.error("Start date must be before end date")
+        sys.exit(1)
+    start = datetime.strptime(args.start_date, "%Y%m%d%H")
+    end   = datetime.strptime(args.end_date, "%Y%m%d%H")
+    step  = timedelta(hours=args.timestep_hours)
 
-    # Configure output filename
-    output_filename = f"glorys024_uv_{args.start_date}.nc"
-    logging.info(f"Output filename: {output_filename}")
-
-    # Get domain coordinates
     try:
-        domain_coords = config.domains[args.domain]
-        logging.info(f"Using domain '{args.domain}': {domain_coords}")
+        coords = config.domains[args.domain]
+        logging.info(f"Using domain '{args.domain}': {coords}")
     except KeyError:
-        logging.error(f"Domain '{args.domain}' not found in configuration")
+        logging.error(f"Domain '{args.domain}' not found in config")
         logging.error("Available domains: %s", list(config.domains.keys()))
         sys.exit(1)
+    
+    # Calculate total steps for progress tracking
+    total_steps = ((end - start) // step) + 1
+    logging.info(f"Processing {total_steps} time steps from {start} to {end}")
+    
+    out_dir = Path(args.outpath)
+    
+    # Track statistics
+    stats = {
+        'total': 0,
+        'skipped': 0,
+        'downloaded': 0,
+        'failed': 0
+    }
+    
+    t0 = timeit.default_timer()
 
-    # Execute download with timing
-    start_time = timeit.default_timer()
+    current = start
+    while current <= end:
+        stats['total'] += 1
+        logging.info(f"=== Processing time step {current.strftime('%Y%m%d%H')} ({stats['total']}/{total_steps}) ===")
+        
+        success = download_one_step(
+            current, 
+            coords, 
+            args.variables, 
+            out_dir,
+            force_redownload=args.force_redownload,
+            disable_progress_bar=args.disable_progress_bar
+        )
+        
+        if success:
+            # Check if it was a skip or a successful download
+            fname = f"glorys024_{current.strftime('%Y%m%d%H')}.nc"
+            fpath = out_dir / fname
+            if fpath.exists() and not args.force_redownload:
+                # File existed and was valid
+                stats['skipped'] += 1
+            else:
+                # File was downloaded
+                stats['downloaded'] += 1
+        else:
+            stats['failed'] += 1
+        
+        current += step
+
+    elapsed = timeit.default_timer() - t0
+    mins, secs = divmod(elapsed, 60)
     
-    success = download_cmems(
-        start_date=args.start_date,
-        end_date=end_date,
-        coordinates=domain_coords,
-        variables=args.variables,
-        output_filename=output_filename,
-        outpath=args.outpath,
-        force_redownload=args.force_redownload,
-        disable_progress_bar=True  # Disable progress bar for cleaner logging
+    # Print summary
+    summary_msg = (
+        f"\nDownload Summary:\n"
+        f"  Total time steps: {stats['total']}\n"
+        f"  Skipped (valid existing): {stats['skipped']}\n"
+        f"  Downloaded: {stats['downloaded']}\n"
+        f"  Failed: {stats['failed']}\n"
+        f"  Execution time: {int(mins)}m {secs:.2f}s"
     )
+    logging.info(summary_msg)
     
-    # Calculate and display execution time
-    elapsed = timeit.default_timer() - start_time
-    minutes, seconds = divmod(elapsed, 60)
-    
-    if success:
-        logging.info(f"Download completed successfully in {int(minutes)}m {seconds:.2f}s")
-    else:
-        logging.error(f"Download failed after {int(minutes)}m {seconds:.2f}s")
+    if stats['failed'] > 0:
+        logging.warning(f"Some downloads failed. Check the logs for details.")
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

@@ -40,6 +40,7 @@ Notas:
 """
 from __future__ import annotations
 import argparse
+import re
 import os
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Tuple
@@ -393,9 +394,11 @@ def parse_args():
         description="Integra ECMWF + GLORYS_024 + FMWAM en malla GLORYS (bilineal)"
     )
     p.add_argument("--start", type=lambda s: re.sub(r'[^\d]', '', s), 
-                        default=datetime.now(timezone.utc).strftime("%Y%m%d"),
-                        help="Initial date/hour in YYYYMMDD or YYYY-MM-DD format.")
-    p.add_argument("--end", required=True, help="Fecha/hora fin YYYYMMDDHH")
+                    required=True,
+                    help="Initial date/hour in YYYYMMDDHH or YYYY-MM-DD-HH format.")
+    p.add_argument("--end", type=lambda s: re.sub(r'[^\d]', '', s), 
+                    required=True,
+                    help="Final date/hour in YYYYMMDDHH or YYYY-MM-DD-HH format.")
     p.add_argument("--dt_hours", type=int, default=6, help="Paso temporal en horas (default=6)")
     p.add_argument("--path_ehm", required=True, help="Directorio o template GLORYS (ej. ./glorys o ./glorys/glorys024_aaaammddHH.nc)")
     p.add_argument("--path_eam", required=True, help="Directorio o template ECMWF (ej. ./ecmwf o ./ecmwf/ecmwf_aaaammddHH.nc)")

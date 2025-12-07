@@ -125,6 +125,7 @@ FMWAM_domain = domain_name
 # GLORYS_output_directory="/media/amilcar/STORE/DATA/OPERATIVE_MODELS/MARINE_CURRENT/Data_Glorys"
 GLORYS_output_directory = "data/glorys"
 GLORYS_days_number = days_number
+GLORYS_time_step = time_step
 GLORYS_domain = domain_name
 GLORYS_minimum_depth=0.49402499198913574
 GLORYS_maximum_depth=0.49402499198913574
