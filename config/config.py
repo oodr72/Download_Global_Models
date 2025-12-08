@@ -119,6 +119,7 @@ FMWAM_variables = [
     "VTM01_WW", # Mean Period of Wind Waves
     "VTM01_SW1" # Mean Period of Primary Swell Waves
     ]
+FMWAM_timestep_hours = time_step
 FMWAM_days_number = days_number  # 9 (number of days to forecast)
 FMWAM_last_hour = last_hour
 FMWAM_domain = domain_name

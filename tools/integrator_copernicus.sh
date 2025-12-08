@@ -1,6 +1,6 @@
 #!/bin/bash
 
-start_date=20251203
+start_date=20251205
 start_hour=00
 final_hour=18
 start_time=${start_date}-${start_hour}
