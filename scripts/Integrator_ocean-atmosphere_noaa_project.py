@@ -649,7 +649,11 @@ def build_and_save_integrated(
     datasets_gfs: list[xr.Dataset] = []
     for f in files_aam:
         ds_tmp = xr.open_dataset(
-            f, engine="h5netcdf", chunks=chunks if chunks else {"time": 1}
+            f,
+            engine="h5netcdf",
+            chunks={"time": chunks["time"]} if chunks and "time" in chunks else "auto",
+            decode_times=True,
+            decode_timedelta=True,
         )
         ds_tmp = _preprocess_gfs(ds_tmp)
         datasets_gfs.append(ds_tmp)
@@ -706,7 +710,11 @@ def build_and_save_integrated(
     datasets_hy: list[xr.Dataset] = []
     for f in files_ahm:
         ds_tmp = xr.open_dataset(
-            f, engine="h5netcdf", chunks=chunks if chunks else {"time": 1}
+            f,
+            engine="h5netcdf",
+            chunks={"time": chunks["time"]} if chunks and "time" in chunks else "auto",
+            decode_times=True,
+            decode_timedelta=True,
         )
         ds_tmp = _preprocess_hycom(ds_tmp)
         datasets_hy.append(ds_tmp)
