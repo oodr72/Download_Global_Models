@@ -183,7 +183,7 @@ def process_and_save_subset(file_path, output_folder, coordinates, force_reproce
     """
     # Create output filename
     base_name = os.path.basename(file_path)
-    output_path = os.path.join(output_folder, f"subset_{base_name}")
+    output_path = os.path.join(output_folder, f"{base_name}")
     
     # Check if processed file already exists and is valid
     if os.path.exists(output_path) and not force_reprocess:
@@ -373,7 +373,7 @@ def download_hycom_forecast(start_date, days_number, time_step, coordinates, out
         valid_dt = date_dt + timedelta(hours=fh)
         local_filename = f"hycom_{valid_dt.strftime('%Y%m%d%H')}.nc"
         raw_path = os.path.join(raw_folder, local_filename)
-        processed_path = os.path.join(processed_folder, f"subset_{local_filename}")
+        processed_path = os.path.join(processed_folder, f"{local_filename}")
         
         # Check if processed file already exists and is valid
         if os.path.exists(processed_path) and not force_redownload:

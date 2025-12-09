@@ -144,41 +144,52 @@ def _select_surface_if_present(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
-def _open_concat(files: List[str], chunks: Optional[dict] = None,
-                 vars_keep: Optional[List[str]] = None,
-                 engine: Optional[str] = None) -> xr.Dataset:
+def _open_concat(
+    files: List[str],
+    chunks: Optional[dict] = None,
+    vars_keep: Optional[List[str]] = None,
+    engine: Optional[str] = "netcdf4",
+) -> xr.Dataset:
+    """
+    Abre y concatena una lista de NetCDF de forma secuencial (sin open_mfdataset),
+    para evitar problemas de concurrencia/segfaults en netCDF4/HDF5.
+    """
     if len(files) == 0:
         raise ValueError("No se proporcionaron archivos para abrir.")
 
-    def _preprocess(ds: xr.Dataset) -> xr.Dataset:
+    datasets = []
+    for f in files:
+        if not os.path.exists(f):
+            raise FileNotFoundError(f"Archivo no encontrado: {f}")
+
+        try:
+            ds = xr.open_dataset(
+                f,
+                chunks=chunks,
+                engine=engine,
+                decode_times=True,
+            )
+        except RuntimeError as e:
+            # Mensaje más explícito para errores HDF
+            if "NetCDF: HDF error" in str(e):
+                raise RuntimeError(
+                    "Error al abrir NetCDF (probablemente corrupto o no válido): "
+                    f"{f}\nPrueba 'file' y 'ncdump -h' sobre ese archivo."
+                ) from e
+            raise
+
+        # Filtramos variables si se pide
         if vars_keep is not None:
             keep = [v for v in vars_keep if v in ds]
             ds = ds[keep]
-        return ds
 
-    try:
-        ds = xr.open_mfdataset(
-            files,
-            combine='nested',
-            concat_dim='time',
-            parallel=True,
-            preprocess=_preprocess,
-            chunks=chunks,
-            engine="netcdf4",   # Fuerza el motor netcdf4 para mayor robustez
-            decode_times=True,
-            coords='minimal',
-            compat='override'
-        )
-    except Exception as e:
-        # Mensaje más claro cuando accidentalmente se pasa un directorio
-        first = files[0]
-        if os.path.isdir(first):
-            raise RuntimeError(
-                f"Se intentó abrir un directorio como NetCDF: {first}. "
-                f"Asegúrate de pasar un *template* con 'aaaammddHH.nc' o un directorio válido."
-            ) from e
-        raise
-    return ds
+        datasets.append(ds)
+
+    # Concatenamos a lo largo del eje 'time'
+    ds_all = xr.concat(datasets, dim="time")
+    return ds_all
+
+
 
 
 def _ensure_latlon_names(ds: xr.Dataset,
@@ -343,7 +354,7 @@ def build_and_save_integrated(
         "grid_target": "GLORYS_024 lon/lat (xfirst=-90, yfirst=9, dx≈0.083333°, dy≈0.083333°)",
         "method_interpolation": "Bilineal (xarray.interp, método='linear')",
         "time_step_hours": dt_hours,
-        "created_on": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "created_on": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "conventions": "CF-1.8",
         "note": (
             "ECMWF lon 0–360 convertido a -180–180 y ordenado; selección de superficie "
