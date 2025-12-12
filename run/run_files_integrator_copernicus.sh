@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Integrate Copernicus files for a specific date
+
+# Get the date from command line argument using flags
+
+
+
 start_date=20251206
 start_hour=00
 final_hour=23
@@ -13,7 +19,7 @@ output_dir="data/copernicus"
 mkdir -p ${output_dir}/${start_date}
 
 
-python3 -m scripts.Integrator_ocean-atmosphere_copernicus_project \
+python3 -m scripts.files_integrator_metocen_copernicus \
     --start ${start_time} \
     --end ${end_time} \
     --dt_hours ${dt_hours} \
