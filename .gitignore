@@ -2,4 +2,4 @@
 data/
 *.pyc
 figures/
-gifs/
+__pycache__/
