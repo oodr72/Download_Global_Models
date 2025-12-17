@@ -3,3 +3,4 @@ data/
 *.pyc
 figures/
 __pycache__/
+figures/gifs/
