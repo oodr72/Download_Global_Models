@@ -97,7 +97,7 @@ if __name__ == '__main__':
     print(f"Date range: {args.start_date} to {end_date}")
 
     # Configure output filename
-    output_filename = f"glorys024_uv_{args.start_date}_to_{end_date}.nc"
+    output_filename = f"glorys024_uv_{args.start_date}.nc"
 
     # Get domain coordinates
     try:
