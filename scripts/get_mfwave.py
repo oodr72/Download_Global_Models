@@ -3,21 +3,21 @@
 
 from pathlib import Path
 import sys
-import copernicusmarine
 from src.files_functions import get_copernicus_key
+from src.model_utils import add_days_yyyymmdd, yyyymmdd_to_iso
 from datetime import datetime, timedelta, timezone
 import os 
 from config import config
 import argparse
 
 
-def args():
+def parse_arguments():
     parser = argparse.ArgumentParser(description='Download MFWave files')
     parser.add_argument('--start_date', type=str, default=datetime.now(timezone.utc).strftime('%Y%m%d')
     , help='Initial date in "yyyymmdd" format')
     parser.add_argument('--days_number', type=int, default=config.FMWAM_days_number, help='Timestep in hours')
     parser.add_argument('--domain', type=str, default=config.FMWAM_domain, help='Name of the domain')
-    parser.add_argument('--variables', type=str, default=config.FMWAM_variables, help='List of variables to be saved')
+    parser.add_argument('--variables', nargs='+', default=config.FMWAM_variables, help='List of variables to be saved')
     parser.add_argument('--outpath', type=str, default=config.FMWAM_output_directory, help='Folder where downloaded files will be saved')
     return parser.parse_args()
 
@@ -26,6 +26,8 @@ def download_fmwam(start_date, end_date, coordinates, variables, output_filename
 
     minsize = 100 # Minimum file size in KB for a valid file
     print(f"Downloading files from {start_date} to {end_date}")
+    start_iso = yyyymmdd_to_iso(start_date)
+    end_iso = yyyymmdd_to_iso(end_date)
 
     outpath = os.path.join(outpath, start_date)
     full_path = os.path.join(outpath, output_filename)
@@ -38,6 +40,8 @@ def download_fmwam(start_date, end_date, coordinates, variables, output_filename
 
     if not os.path.exists(f"{outpath}/{output_filename}") or os.stat(f"{outpath}/{output_filename}").st_size/1024 < minsize:
         print(f"Downloading {output_filename}")
+        import copernicusmarine
+
         copernicusmarine.subset(
             dataset_id="cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
             dataset_version="202411",
@@ -46,8 +50,8 @@ def download_fmwam(start_date, end_date, coordinates, variables, output_filename
             maximum_longitude=coordinates["lon_max"],
             minimum_latitude=coordinates["lat_min"],
             maximum_latitude=coordinates["lat_max"],
-            start_datetime=f"{start_date}T00:00:00",
-            end_datetime=f"{end_date}T23:59:00",
+            start_datetime=f"{start_iso}T00:00:00",
+            end_datetime=f"{end_iso}T23:59:00",
             coordinates_selection_method="strict-inside",
             disable_progress_bar=disable_progress_bar,
             output_directory=outpath,
@@ -60,7 +64,7 @@ def download_fmwam(start_date, end_date, coordinates, variables, output_filename
 
 
 if __name__ == '__main__':
-    args = args()
+    args = parse_arguments()
     for key, value in args.__dict__.items():
         print(f"{key}: {value}")
 
@@ -68,6 +72,8 @@ if __name__ == '__main__':
     credentials_path = Path.home() / ".copernicusmarine" / ".copernicusmarine-credentials"
 
     if not credentials_path.exists():
+        import copernicusmarine
+
         user, key, _ = get_copernicus_key()
         copernicusmarine.login(username=user, password=key)
         print("Copernicus Marine credentials set")
@@ -76,7 +82,7 @@ if __name__ == '__main__':
         print("Using existing Copernicus Marine credentials")
 
     # Range dates
-    end_date = (datetime.strptime(args.start_date, "%Y%m%d") + timedelta(days=args.days_number)).strftime("%Y-%m-%d")
+    end_date = add_days_yyyymmdd(args.start_date, args.days_number)
     print(f"Range dates: {args.start_date} to {end_date}")
 
     # Oout file name

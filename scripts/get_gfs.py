@@ -26,10 +26,11 @@ import timeit
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Iterable
 
 import requests
 from config import config  # your project's config/config.py
+from src.model_utils import forecast_hours
 
 
 # ========================================================================= #
@@ -150,7 +151,15 @@ def convert_with_cfgrib(
     if not datasets:
         raise RuntimeError("cfgrib could not open any desired subset")
 
-    xr.merge(datasets, compat="override").to_netcdf(nc_path)
+    try:
+        merged = xr.merge(datasets, compat="override")
+        try:
+            merged.to_netcdf(nc_path)
+        finally:
+            merged.close()
+    finally:
+        for ds in datasets:
+            ds.close()
     print(f"   NetCDF saved: {nc_path}")
 
     if not keep_grib:
@@ -261,7 +270,7 @@ def main(
     download_file(anl_url, anl_path)
 
     # forecasts ---------------------------------------------------------------
-    for fh in range(timestep, last_hour + timestep, timestep):
+    for fh in forecast_hours(last_hour, timestep, include_zero=False):
         fh_str = f"f{fh:03d}"
         forecast_date = (datetime.strptime(date_str + init_str, "%Y%m%d%H")
                          + timedelta(hours=fh)).strftime("%Y%m%d%H")

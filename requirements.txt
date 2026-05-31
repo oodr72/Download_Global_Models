@@ -1,22 +1,21 @@
-decouple==0.0.7
-dotenv==0.9.9
+requests>=2.31.0
+numpy>=1.24.0
+xarray==2025.7.1
 netCDF4==1.7.2
+cfgrib==0.9.15.0
 copernicusmarine==2.2.0
+python-dotenv>=1.0.1
+
+# Optional operational APIs/tools used by some workflows
 cdsapi==0.7.6
 ecmwf-opendata==0.3.19
-cfgrib==0.9.15.0
-xarray==2025.7.1
-# core libs
+matplotlib>=3.7.0
+cartopy>=0.22.0
+
+# System libraries commonly required by GRIB/geospatial packages:
 # sudo apt-get install libeccodes0 libeccodes-dev
-# pip install requests xarray cfgrib netCDF4
+# sudo apt-get install libproj-dev proj-bin proj-data
 
 # optional pygrib backend
-# sudo apt-get install libproj-dev proj-bin proj-data
 # pip install pygrib
-
-# pip install cfgrib
-# pip install cdsapi
-# pip install ecmwf-api-client
-# python -m pip install copernicusmarine
 # python -m pip install python-decouple
-# python -m pip install dotenv

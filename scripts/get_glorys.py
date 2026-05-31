@@ -10,8 +10,8 @@ Example:
 
 from pathlib import Path
 import sys
-import copernicusmarine
 from src.files_functions import get_copernicus_key
+from src.model_utils import add_days_yyyymmdd, yyyymmdd_to_iso
 from datetime import datetime, timedelta, timezone
 import os
 from config import config
@@ -42,6 +42,8 @@ def download_cmems(start_date, end_date, coordinates, variables, output_filename
 
 
     print(f"Downloading files from {start_date} to {end_date}")
+    start_iso = yyyymmdd_to_iso(start_date)
+    end_iso = yyyymmdd_to_iso(end_date)
     
     # Create output directory if missing
     if not os.path.exists(outpath):
@@ -51,6 +53,7 @@ def download_cmems(start_date, end_date, coordinates, variables, output_filename
     # Check if file exists and meets size requirements
     if not os.path.exists(full_path) or os.path.getsize(full_path)/1024 < minsize:
         print(f"Downloading {output_filename}...")
+        import copernicusmarine
         
         copernicusmarine.subset(
             dataset_id="cmems_mod_glo_phy_anfc_0.083deg_PT1H-m",
@@ -62,8 +65,8 @@ def download_cmems(start_date, end_date, coordinates, variables, output_filename
             maximum_latitude=coordinates["lat_max"],
             minimum_depth=config.GLORYS_minimum_depth,
             maximum_depth=config.GLORYS_maximum_depth,
-            start_datetime=f"{start_date}T00:00:00",
-            end_datetime=f"{end_date}T23:00:00",
+            start_datetime=f"{start_iso}T00:00:00",
+            end_datetime=f"{end_iso}T23:00:00",
             coordinates_selection_method="strict-inside",
             disable_progress_bar=disable_progress_bar,
             output_directory=outpath,
@@ -85,6 +88,8 @@ if __name__ == '__main__':
     credentials_path = Path.home() / ".copernicusmarine" / ".copernicusmarine-credentials"
     
     if not credentials_path.exists():
+        import copernicusmarine
+
         user, key, _ = get_copernicus_key()
         copernicusmarine.login(username=user, password=key)
         print("Copernicus Marine credentials configured")
@@ -92,8 +97,7 @@ if __name__ == '__main__':
         print("Using existing Copernicus Marine credentials")
 
     # Calculate end date
-    end_date = (datetime.strptime(args.start_date, "%Y%m%d") + 
-                timedelta(days=args.days_number)).strftime("%Y%m%d")
+    end_date = add_days_yyyymmdd(args.start_date, args.days_number)
     print(f"Date range: {args.start_date} to {end_date}")
 
     # Configure output filename

@@ -3,14 +3,12 @@
 
 import os
 import requests
-import xarray as xr
 from datetime import datetime, timedelta, timezone
 from config import config
 import argparse
 import timeit
 import sys
 import logging
-from pathlib import Path
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Download HYCOM ocean forecast data')
@@ -28,45 +26,38 @@ def parse_arguments():
 
 def process_and_save_subset(file_path, output_folder, coordinates, log_path):
     try:
-        ds = xr.open_dataset(file_path)
+        import xarray as xr
         
-        # Extract coordinates
-        lon_min = coordinates["lon_min"]
-        lon_max = coordinates["lon_max"]
-        lat_min = coordinates["lat_min"]
-        lat_max = coordinates["lat_max"]
-        
-        # Normalize longitude to 0-360 range
-        lat = ds["Latitude"].values
-        lon = ds["Longitude"].values % 360
-        lon_min_mod = lon_min % 360
-        lon_max_mod = lon_max % 360
-        
-        # Create spatial mask
-        if lon_min_mod < lon_max_mod:
-            mask = (
-                (lat >= lat_min) & (lat <= lat_max) &
-                (lon >= lon_min_mod) & (lon <= lon_max_mod)
-            )
-        else:
-            mask = (
-                (lat >= lat_min) & (lat <= lat_max) &
-                ((lon >= lon_min_mod) | (lon <= lon_max_mod))
-            )
+        with xr.open_dataset(file_path) as ds:
+            lon_min = coordinates["lon_min"]
+            lon_max = coordinates["lon_max"]
+            lat_min = coordinates["lat_min"]
+            lat_max = coordinates["lat_max"]
+            lat = ds["Latitude"].values
+            lon = ds["Longitude"].values % 360
+            lon_min_mod = lon_min % 360
+            lon_max_mod = lon_max % 360
 
-        if not mask.any():
-            message = f"⚠️ No data found within region for {os.path.basename(file_path)}"
-            logging.warning(message)
-            return False
+            if lon_min_mod < lon_max_mod:
+                mask = (
+                    (lat >= lat_min) & (lat <= lat_max) &
+                    (lon >= lon_min_mod) & (lon <= lon_max_mod)
+                )
+            else:
+                mask = (
+                    (lat >= lat_min) & (lat <= lat_max) &
+                    ((lon >= lon_min_mod) | (lon <= lon_max_mod))
+                )
 
-        # Get subset indices
-        iy, ix = mask.nonzero()
-        y0, y1 = iy.min(), iy.max()
-        x0, x1 = ix.min(), ix.max()
-        
-        # Create subset dataset
-        ds_subset = ds.isel(Y=slice(y0, y1 + 1), X=slice(x0, x1 + 1))
-        ds.close()
+            if not mask.any():
+                message = f"⚠️ No data found within region for {os.path.basename(file_path)}"
+                logging.warning(message)
+                return False
+
+            iy, ix = mask.nonzero()
+            y0, y1 = iy.min(), iy.max()
+            x0, x1 = ix.min(), ix.max()
+            ds_subset = ds.isel(Y=slice(y0, y1 + 1), X=slice(x0, x1 + 1)).load()
 
         # Create output filename
         base_name = os.path.basename(file_path)

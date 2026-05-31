@@ -9,7 +9,6 @@ Example:
 """
 import os
 import requests
-import xarray as xr
 from datetime import datetime, timedelta, timezone
 import argparse
 import timeit
@@ -33,9 +32,9 @@ def parse_arguments():
                         help='Output directory for processed files')
     return parser.parse_args()
 
-def download_and_convert_ww3(target_date, run_hour, time_step, coordinates, outpath):
+def download_and_convert_ww3(target_date, run_hour, days_number, time_step, coordinates, outpath):
     base_url = "https://nomads.ncep.noaa.gov/cgi-bin/filter_gefs_wave_0p25.pl"
-    max_forecast_hours = min(384, config.WW3_days_number * 24)  # Max 16 days
+    max_forecast_hours = min(384, days_number * 24)  # Max 16 days
     forecast_hours = list(range(0, max_forecast_hours + 1, time_step))
     
     # Create output directory
@@ -128,15 +127,16 @@ def download_and_convert_ww3(target_date, run_hour, time_step, coordinates, outp
         # Convert to NetCDF
         print(f"   🔄 Converting to NetCDF: {nc_name}")
         try:
+            import xarray as xr
+
             # Check if cfgrib engine is available
             if 'cfgrib' not in xr.backends.list_engines():
                 raise ImportError("cfgrib engine not available. Install with: pip install cfgrib eccodes")
             
             # Use cfgrib engine to open the GRIB file
-            ds = xr.open_dataset(grib_path, engine="cfgrib")
-            compression = {var: {"zlib": True, "complevel": 4} for var in ds.data_vars}
-            ds.to_netcdf(nc_path, format="NETCDF4_CLASSIC", encoding=compression)
-            ds.close()
+            with xr.open_dataset(grib_path, engine="cfgrib") as ds:
+                compression = {var: {"zlib": True, "complevel": 4} for var in ds.data_vars}
+                ds.to_netcdf(nc_path, format="NETCDF4_CLASSIC", encoding=compression)
             msg = f"   📦 Saved NetCDF: {nc_path}"
             print(msg)
             logging.info(msg)
@@ -192,6 +192,7 @@ if __name__ == "__main__":
     log_file = download_and_convert_ww3(
         target_date=args.start_date,
         run_hour=args.run_hour,
+        days_number=args.days_number,
         time_step=args.time_step,
         coordinates=domain_coords,
         outpath=args.outpath

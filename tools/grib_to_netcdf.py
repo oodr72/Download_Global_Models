@@ -1,11 +1,9 @@
+import argparse
 import os
 import shutil
-import sys
 from glob import glob
-import xarray as xr
-import cfgrib
 
-def convert_grib_to_netcdf(folder_path):
+def convert_grib_to_netcdf(folder_path, delete_originals=False):
     """
     Convert all GRIB2 files in a folder to NetCDF4 format using cfgrib/xarray integration.
     
@@ -19,6 +17,9 @@ def convert_grib_to_netcdf(folder_path):
     if not grib_files:
         print(f"No GRIB files found in {folder_path}")
         return
+
+    import xarray as xr
+    import cfgrib
 
     for grib_file in grib_files:
         temp_nc = None
@@ -56,8 +57,8 @@ def convert_grib_to_netcdf(folder_path):
                         ds.close()
                     print(f"  Saved {len(datasets)} groups in NetCDF file")
             
-            # Replace original GRIB with new NetCDF
-            os.remove(grib_file)
+            if delete_originals:
+                os.remove(grib_file)
             shutil.move(temp_nc, nc_file)
             print(f"Successfully created: {os.path.basename(nc_file)}")
             
@@ -66,10 +67,19 @@ def convert_grib_to_netcdf(folder_path):
             if temp_nc and os.path.exists(temp_nc):
                 os.remove(temp_nc)
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description="Convert GRIB2 files in a folder to NetCDF using xarray/cfgrib."
+    )
+    parser.add_argument("folder_path", help="Folder containing .grb2 or .grib2 files")
+    parser.add_argument(
+        "--delete-originals",
+        action="store_true",
+        help="Delete source GRIB files after successful conversion",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python grib_to_netcdf.py <folder_path>")
-        sys.exit(1)
-    
-    target_folder = sys.argv[1]
-    convert_grib_to_netcdf(target_folder)
+    args = parse_arguments()
+    convert_grib_to_netcdf(args.folder_path, delete_originals=args.delete_originals)

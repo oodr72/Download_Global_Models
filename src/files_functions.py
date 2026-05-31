@@ -1,55 +1,52 @@
-# from dotenv import find_dotenv, load_dotenv
-# from decouple import config
+from __future__ import annotations
 
-def get_copernicus_key():
-     
-     from dotenv import find_dotenv, load_dotenv
-     from decouple import config
-     """
-     This function returns the key and user of the web data acces
-     """
-     if not find_dotenv(".env"):
-         raise FileNotFoundError("File not found: '.env'")
-     _ = load_dotenv(find_dotenv(".env"))
-     user = config("COPERNICUS_USER", cast=str)
-     key = config("COPERNICUS_KEY", cast=str)
-     return user, key, _
+import importlib.util
+import os
+from pathlib import Path
+from types import ModuleType
 
 
-def get_ecmwf_key():
-     
-     from dotenv import find_dotenv, load_dotenv
-     from decouple import config
-     """
-     This function returns the key and user of the web data acces
-     """
-     if not find_dotenv(".env"):
-         raise FileNotFoundError("File not found: '.env'")
-     _ = load_dotenv(find_dotenv(".env"))
-     url = config("ECMWF_URL", cast=str)
-     key = config("ECMWF_KEY", cast=str)
-     email = config("ECMWF_EMAIL", cast=str)
-     return url, key, email
+def _load_dotenv() -> bool:
+    try:
+        from dotenv import find_dotenv, load_dotenv
+    except ImportError:
+        return False
+
+    env_path = find_dotenv(".env", usecwd=True)
+    if not env_path:
+        return False
+    return bool(load_dotenv(env_path))
 
 
-def get_copernicus_key():
-     """Retrieve ECMWF CDS API credentials"""
-     # Implement your secure credential retrieval here
-     # Example: Read from environment variables
-     import os
-     uid = os.getenv("COPERNICUS_UID")
-     api_key = os.getenv("COPERNICUS_API_TOKEN")
-    
-     if not uid or not api_key:
-         raise ValueError("ECMWF credentials not found in environment variables")
-    
-     return uid, api_key
+def _get_required_env(*names: str) -> str:
+    for name in names:
+        value = os.getenv(name)
+        if value:
+            return value
+    raise ValueError(f"Missing required environment variable. Tried: {', '.join(names)}")
 
 
-def load_config(config_file):
-    
-    import importlib.util
+def get_copernicus_key() -> tuple[str, str, bool]:
+    """Return Copernicus Marine credentials as username, key and dotenv status."""
+    loaded_env = _load_dotenv()
+    user = _get_required_env("COPERNICUS_USER", "COPERNICUS_UID")
+    key = _get_required_env("COPERNICUS_KEY", "COPERNICUS_API_TOKEN")
+    return user, key, loaded_env
+
+
+def get_ecmwf_key() -> tuple[str, str, str]:
+    """Return ECMWF URL, key and email credentials."""
+    _load_dotenv()
+    url = _get_required_env("ECMWF_URL")
+    key = _get_required_env("ECMWF_KEY")
+    email = _get_required_env("ECMWF_EMAIL")
+    return url, key, email
+
+
+def load_config(config_file: str | Path) -> ModuleType:
     spec = importlib.util.spec_from_file_location("config", config_file)
-    config = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(config)
-    return config
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not load config file: {config_file}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module

@@ -1,2 +1,22 @@
 data/
 *.pyc
+__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+
+# Downloaded model artifacts and indexes
+*.grb2
+*.grib2
+*.idx
+*.nc
+*.nc.temp
+
+# Runtime logs and generated figures
+*.log
+figures/*.png

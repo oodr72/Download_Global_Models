@@ -10,14 +10,13 @@ Example:
 """
 import os
 import requests
-import xarray as xr
-import glob
 from datetime import datetime, timedelta, timezone
 import argparse
 import timeit
 import sys
 from config import config
 import logging
+from src.model_utils import remove_idx_files
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Download and process ECMWF forecast data')
@@ -46,65 +45,50 @@ def generate_ecmwf_urls(date, hour, max_forecast_hour, step):
         urls.append(url)
     return urls
 
-def remove_idx_files(grib_path: str) -> None:
-    """Remove any .idx files associated with a GRIB file"""
-    idx_pattern = f"{grib_path}.*.idx"
-    for idx_file in glob.glob(grib_path + ".*.idx"):
-        try:
-            os.remove(idx_file)
-            print(f"   🧹 Removed index file: {os.path.basename(idx_file)}")
-        except Exception as e:
-            print(f"   ⚠️ Could not remove index file {os.path.basename(idx_file)}: {str(e)}")
-
 def process_ecmwf_grib(file_path, output_path, coordinates):
     """Process ECMWF GRIB file: subset to domain and convert to NetCDF"""
     try:
-        # Open GRIB file
-        ds = xr.open_dataset(file_path, engine="cfgrib")
+        import xarray as xr
         
-        # Extract coordinates
-        lon_min = coordinates["lon_min"]
-        lon_max = coordinates["lon_max"]
-        lat_min = coordinates["lat_min"]
-        lat_max = coordinates["lat_max"]
-        
-        # Handle longitude range (ECMWF uses 0-360)
-        lon = ds.longitude.values
-        lon_min_mod = lon_min % 360
-        lon_max_mod = lon_max % 360
-        
-        # Create spatial mask
-        if lon_min_mod <= lon_max_mod:
-            mask = (
-                (ds.latitude >= lat_min) & 
-                (ds.latitude <= lat_max) &
-                (ds.longitude >= lon_min_mod) & 
-                (ds.longitude <= lon_max_mod)
-            )
-        else:
-            mask = (
-                (ds.latitude >= lat_min) & 
-                (ds.latitude <= lat_max) &
-                ((ds.longitude >= lon_min_mod) | 
-                 (ds.longitude <= lon_max_mod))
-            )
-        
-        # Apply mask and subset
-        ds_subset = ds.where(mask, drop=True)
-        
+        with xr.open_dataset(file_path, engine="cfgrib") as ds:
+            lon_min = coordinates["lon_min"]
+            lon_max = coordinates["lon_max"]
+            lat_min = coordinates["lat_min"]
+            lat_max = coordinates["lat_max"]
+            lon_min_mod = lon_min % 360
+            lon_max_mod = lon_max % 360
+
+            if lon_min_mod <= lon_max_mod:
+                mask = (
+                    (ds.latitude >= lat_min) &
+                    (ds.latitude <= lat_max) &
+                    (ds.longitude >= lon_min_mod) &
+                    (ds.longitude <= lon_max_mod)
+                )
+            else:
+                mask = (
+                    (ds.latitude >= lat_min) &
+                    (ds.latitude <= lat_max) &
+                    ((ds.longitude >= lon_min_mod) |
+                     (ds.longitude <= lon_max_mod))
+                )
+
+            ds_subset = ds.where(mask, drop=True).load()
+
         # Save to NetCDF with compression
         compression = {var: {"zlib": True, "complevel": 4} for var in ds_subset.data_vars}
         ds_subset.to_netcdf(output_path, format="NETCDF4_CLASSIC", encoding=compression)
         
         # Return dimensions for logging
-        return ds_subset.dims.get('longitude', 0), ds_subset.dims.get('latitude', 0)
+        return ds_subset.sizes.get('longitude', 0), ds_subset.sizes.get('latitude', 0)
     
     except Exception as e:
         logging.error(f"Error processing {file_path}: {str(e)}")
         raise
     finally:
         # Always remove index files after processing
-        remove_idx_files(file_path)
+        for idx_file in remove_idx_files(file_path):
+            print(f"   🧹 Removed index file: {idx_file.name}")
 
 def download_and_process_ecmwf(start_date, run_hour, days_number, time_step, coordinates, outpath):
     """Download and process ECMWF wave forecast data"""
