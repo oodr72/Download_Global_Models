@@ -8,6 +8,7 @@ Example:
 python -m scripts.get_ww3_noaa --start_date 20231001 --days_number 3 --domain global --run_hour 00 --time_step 6 --outpath ./ww3_data
 """
 import os
+import re
 import requests
 import xarray as xr
 from datetime import datetime, timedelta, timezone
@@ -16,17 +17,12 @@ import timeit
 import sys
 from config import config
 import logging
-"""
-This script downloads and processes NOAA WW3 wave forecast data.
-It retrieves data for a specified date range and domain, converts it to NetCDF format,
-and saves it to a specified output directory.
-Example usage:
-python -m scripts.get_ww3_noaa --start_date 20231001 --days_number 3 --domain global --run_hour 00 --time_step 6 --outpath ./
-"""
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Download and process NOAA WW3 wave forecast data')
-    parser.add_argument('--start_date', type=str, default=datetime.now(timezone.utc).strftime('%Y%m%d'),
-                        help='Initial date in YYYYMMDD format')
+    parser.add_argument("--start_date", type=lambda s: re.sub(r'[^\d]', '', s), 
+                        default=datetime.now(timezone.utc).strftime("%Y%m%d"),
+                        help="Initial forecast date in YYYYMMDD or YYYY-MM-DD format.")
     parser.add_argument('--days_number', type=int, default=config.WW3_days_number,
                         help='Number of forecast days to download (max 16)')
     parser.add_argument('--domain', type=str, default=config.WW3_domain,
