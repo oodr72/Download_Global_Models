@@ -64,6 +64,21 @@ python3 -m tools.get_domain_map --domain atlantic --save
 
 Downloaded model artifacts are ignored by git. Use temporary output folders for experiments and avoid committing NetCDF/GRIB products unless a small fixture is intentionally added.
 
+## Visual Dashboard
+
+An interactive Streamlit dashboard provides a graphical interface to configure, launch, and monitor downloads, visualize domains on a map, browse downloaded files, and preview NetCDF data.
+
+```bash
+streamlit run app.py
+```
+
+Features:
+- Model/domain/date selector with per-model parameter panels
+- Interactive Plotly geo-map of selected domain
+- One-click download execution with live log streaming
+- File browser with size and timestamp info
+- NetCDF variable inspector with interactive 2-D plots
+
 ## Testing
 
 The default test suite is offline and uses mocks or synthetic datasets.

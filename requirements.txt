@@ -12,6 +12,10 @@ ecmwf-opendata==0.3.19
 matplotlib>=3.7.0
 cartopy>=0.22.0
 
+# Dashboard (app.py)
+streamlit>=1.32.0
+plotly>=5.18.0
+
 # System libraries commonly required by GRIB/geospatial packages:
 # sudo apt-get install libeccodes0 libeccodes-dev
 # sudo apt-get install libproj-dev proj-bin proj-data

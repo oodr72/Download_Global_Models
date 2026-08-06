@@ -16,3 +16,4 @@ Operational maintenance, validation, and change tracking.
 | --- | --- | --- |
 | [Maintenance And Validation](ops/maintenance-and-validation.md) | Standard maintenance workflow, offline validation commands, live-download safety, and wiki update rules. | 2026-05-31 |
 | [Implementation 2026-05-31](ops/implementation-2026-05-31.md) | Changes made in the first implementation pass: credentials, scripts, tests, dependencies, docs, and custom skill. | 2026-05-31 |
+| [Visual Dashboard](ops/visual-dashboard.md) | Interactive Streamlit dashboard for download control, domain visualization, and result inspection. | 2026-05-31 |
