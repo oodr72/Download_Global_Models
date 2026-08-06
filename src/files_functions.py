@@ -32,20 +32,6 @@ def get_ecmwf_key():
      return url, key, email
 
 
-def get_copernicus_key():
-     """Retrieve ECMWF CDS API credentials"""
-     # Implement your secure credential retrieval here
-     # Example: Read from environment variables
-     import os
-     uid = os.getenv("COPERNICUS_UID")
-     api_key = os.getenv("COPERNICUS_API_TOKEN")
-    
-     if not uid or not api_key:
-         raise ValueError("ECMWF credentials not found in environment variables")
-    
-     return uid, api_key
-
-
 def load_config(config_file):
     
     import importlib.util

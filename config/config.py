@@ -70,7 +70,7 @@ RTOFS_variables = [
     "SEAICE_THICKNESS", # Sea Ice Thickness (m)
     "MLD" # Mixed Layer Depth (m)
 ]
-RTOFS_variables = ["SST", "SSS", "SSH", "UVEL", "VVEL", "SEAICE_THICKNESS"]
+# RTOFS_variables = ["SST", "SSS", "SSH", "UVEL", "VVEL", "SEAICE_THICKNESS"]
 #------------------------------------------------
 
 
@@ -103,7 +103,7 @@ ECMWF_variables = [
     "usurf", # Ocean surface current (eastward)
     "vsurf" # Ocean surface current (northward)
     ]
-ECMWF_variables = ["2t", "2d","msl","10u", "10v"]
+# ECMWF_variables = ["2t", "2d","msl","10u", "10v"]
 # ECMWF_variables = None # Uncomment this line to set default variables
 #------------------------------------------------
 
@@ -141,14 +141,14 @@ GLORYS_variables = [
     "so",    # Salinity
     "zos",   # Sea Surface Height
     "uo",  # Eastward Sea Water Velocity
-    "vo" # Northward Sea Water Velocity
+    "vo", # Northward Sea Water Velocity
     "siconc", # Sea Ice Concentration
     "sithick", # Sea Ice Thickness
     "usi", # Eastward Sea Ice Velocity
     "vsi", # Northward Sea Ice Velocity
     "mlotst" # Mixed Layer Depth
     ]
-GLORYS_variables = ["uo", "vo"]
+# GLORYS_variables = ["uo", "vo"]
 #------------------------------------------------
 
 # HYCOM Configuration

@@ -500,6 +500,269 @@ def _grid_from_griddes_txt(path_txt: str) -> Tuple[np.ndarray, np.ndarray]:
     return lon, lat
 
 
+# ------------------------------------------------------------------
+# Model readers
+# ------------------------------------------------------------------
+def _read_gfs(path_template: str, times: List[datetime]) -> xr.Dataset:
+    files = [_expand_template(path_template, t) for t in times]
+    missing = [f for f in files if not os.path.exists(f)]
+    if missing:
+        raise FileNotFoundError(f"GFS files not found: {missing}")
+    vars_keep = ["2t", "10u", "10v", "t", "u", "v", "UGRD", "VGRD", "TMP"]
+    ds = _open_concat(files, vars_keep=vars_keep, engine="h5netcdf")
+    # Normalize variable names
+    rename_map = {
+        "UGRD": "10u", "VGRD": "10v", "TMP": "2t",
+        "u": "10u", "v": "10v", "t": "2t"
+    }
+    ds = ds.rename({k: v for k, v in rename_map.items() if k in ds})
+    # Keep only surface levels
+    if "10u" in ds:
+        ds_10u = ds["10u"]
+        ds_10v = ds["10v"]
+        ds_2t = ds.get("2t", ds.get("TMP", None))
+        if ds_10u is not None and "level" in ds_10u.dims and ds_10u.sizes.get("level", 1) > 1:
+            # Keep only level=10 or level=10m equivalent
+            levels = ds_10u["level"].values
+            idx = np.argmin(np.abs(levels - 10))
+            ds_10u = ds_10u.isel(level=int(idx))
+            ds_10v = ds["10v"].isel(level=int(idx)) if "10v" in ds else None
+            if ds_2t is not None and "isobaricInhPa" in ds_2t.dims:
+                ds_2t = ds_2t.isel(isobaricInhPa=0)
+        ds_final = xr.Dataset()
+        ds_final["10u"] = ds_10u
+        if ds_10v is not None:
+            ds_final["10v"] = ds_10v
+        if ds_2t is not None:
+            ds_final["2t"] = ds_2t
+        return _ensure_latlon_names(ds_final)
+    return _ensure_latlon_names(ds[[v for v in ["10u", "10v", "2t"] if v in ds]])
+
+
+def _read_hycom(path_template: str, times: List[datetime]) -> xr.Dataset:
+    files = [_expand_template(path_template, t) for t in times]
+    missing = [f for f in files if not os.path.exists(f)]
+    if missing:
+        raise FileNotFoundError(f"HYCOM/RTOFS files not found: {missing}")
+    vars_keep = ["u_velocity", "v_velocity", "sst", "water_u", "water_v", "water_temp"]
+    ds = _open_concat(files, vars_keep=vars_keep, engine="h5netcdf")
+    # Rename to standard names
+    rename_map = {
+        "water_u": "u_velocity", "water_v": "v_velocity",
+        "water_temp": "sst"
+    }
+    ds = ds.rename({k: v for k, v in rename_map.items() if k in ds})
+    return ds[[v for v in ["u_velocity", "v_velocity", "sst"] if v in ds]]
+
+
+def _read_ww3(path_template: str, times: List[datetime]) -> xr.Dataset:
+    files = [_expand_template(path_template, t) for t in times]
+    missing = [f for f in files if not os.path.exists(f)]
+    if missing:
+        raise FileNotFoundError(f"WW3 files not found: {missing}")
+    vars_keep = ["swh", "perpw", "dirpw", "shww", "mpww", "wvdir", "ws", "wdir", 
+                 "shts", "mpts", "wave_height", "wave_period", "wave_direction"]
+    ds = _open_concat(files, vars_keep=vars_keep, engine="h5netcdf")
+    # Normalize variable names if needed
+    rename_map = {
+        "wave_height": "swh", "wave_period": "mpww", "wave_direction": "wvdir"
+    }
+    ds = ds.rename({k: v for k, v in rename_map.items() if k in ds})
+    return ds[[v for v in vars_keep if v in ds]]
+
+
+# ------------------------------------------------------------------
+# Template from directory (auto-discover files)
+# ------------------------------------------------------------------
+def _auto_template_from_dir(dirpath: str, model: str) -> str:
+    """If input is a directory, auto-discover file pattern and build template."""
+    if not os.path.isdir(dirpath):
+        return None  # Not a directory, use as-is
+    files = sorted([f for f in os.listdir(dirpath) if f.endswith(".nc")])
+    if not files:
+        raise FileNotFoundError(f"No .nc files in {dirpath}")
+    # Default template based on model
+    defaults = {
+        "HYCOM": "hycom_aaaammddHH.nc",
+        "GFS": "gfs_aaaammddHH.nc",
+        "WW3": "ww3_aaaammddHH.nc",
+    }
+    fname = defaults.get(model.upper(), "file_aaaammddHH.nc")
+    return os.path.join(dirpath, fname)
+
+
+# ------------------------------------------------------------------
+# Entry point
+# ------------------------------------------------------------------
+def main():
+    parser = argparse.ArgumentParser(
+        description="Integrador NOAA: GFS + HYCOM/RTOFS + WW3 en malla com\u00fan"
+    )
+    parser.add_argument("--start", required=True, help="Start time YYYYMMDDHH")
+    parser.add_argument("--end", required=True, help="End time YYYYMMDDHH")
+    parser.add_argument("--dt_hours", type=int, default=6, help="Time step in hours")
+    parser.add_argument("--path_ahm", required=True,
+                        help="Path template for HYCOM (with 'aaaammddHH') or directory")
+    parser.add_argument("--path_aam", required=True,
+                        help="Path template for GFS (with 'aaaammddHH') or directory")
+    parser.add_argument("--path_awm", required=True,
+                        help="Path template for WW3 (with 'aaaammddHH') or directory")
+    parser.add_argument("--out", required=True, help="Output NetCDF path")
+    parser.add_argument("--target_grid", default=None,
+                        help="griddes.txt path for target grid (optional)")
+    parser.add_argument("--method", default="bilinear",
+                        choices=["bilinear", "nearest"],
+                        help="Interpolation method")
+    parser.add_argument("--chunk_lon", type=int, default=200,
+                        help="Chunk size for longitude")
+    parser.add_argument("--chunk_lat", type=int, default=200,
+                        help="Chunk size for latitude")
+    parser.add_argument("--chunk_time", type=int, default=10,
+                        help="Chunk size for time")
+
+    args = parser.parse_args()
+
+    # Build file templates
+    path_hycom = _auto_template_from_dir(args.path_ahm, "HYCOM") or args.path_ahm
+    path_gfs = _auto_template_from_dir(args.path_aam, "GFS") or args.path_aam
+    path_ww3 = _auto_template_from_dir(args.path_awm, "WW3") or args.path_awm
+
+    path_hycom = _ensure_template(path_hycom, "HYCOM")
+    path_gfs = _ensure_template(path_gfs, "GFS")
+    path_ww3 = _ensure_template(path_ww3, "WW3")
+
+    # Build time list
+    times = _build_times(args.start, args.end, args.dt_hours)
+    print(f"Processing {len(times)} time steps: {times[0]} to {times[-1]}")
+
+    # ------------------------------------------------ 
+    # 1. Read and concatenate source datasets
+    # ------------------------------------------------ 
+    print("Reading GFS data...")
+    ds_gfs = _read_gfs(path_gfs, times)
+    ds_gfs = _standardize_lon_to_180(ds_gfs)
+    print(f"  GFS: {dict(ds_gfs.sizes)}")
+
+    print("Reading HYCOM/RTOFS data...")
+    ds_hycom = _read_hycom(path_hycom, times)
+    print(f"  HYCOM: {dict(ds_hycom.sizes)}")
+
+    print("Reading WW3 data...")
+    ds_ww3 = _read_ww3(path_ww3, times)
+    ds_ww3 = _standardize_lon_to_180(ds_ww3)
+    print(f"  WW3: {dict(ds_ww3.sizes)}")
+
+    # ------------------------------------------------ 
+    # 2. Determine target grid (default: WW3)
+    # ------------------------------------------------ 
+    if args.target_grid:
+        lon_tgt, lat_tgt = _grid_from_griddes_txt(args.target_grid)
+        print(f"Using target grid from griddes.txt: {len(lon_tgt)}x{len(lat_tgt)}")
+    else:
+        # Use WW3 grid as target
+        lon_tgt = _to_numpy(ds_ww3["longitude"] if "longitude" in ds_ww3 else ds_ww3["lon"])
+        lat_tgt = _to_numpy(ds_ww3["latitude"] if "latitude" in ds_ww3 else ds_ww3["lat"])
+        print(f"Using WW3 grid as target: {len(lon_tgt)}x{len(lat_tgt)}")
+
+    # ------------------------------------------------ 
+    # 3. Interpolate to target grid
+    # ------------------------------------------------ 
+    out_datasets = []
+
+    # WW3: already on target grid (or close)
+    if set(ds_ww3.dims) >= {"longitude", "latitude"}:
+        out_datasets.append(ds_ww3)
+    else:
+        # If WW3 has different grid, interpolate
+        lon2d = ds_ww3["longitude"] if "longitude" in ds_ww3 else ds_ww3["lon"]
+        lat2d = ds_ww3["latitude"] if "latitude" in ds_ww3 else ds_ww3["lat"]
+        if lon2d.ndim == 2:
+            ww3_regridded = _interp_curvilinear_to_regular(
+                ds_ww3, lon2d, lat2d, lon_tgt, lat_tgt, method=args.method
+            )
+            out_datasets.append(ww3_regridded)
+        else:
+            out_datasets.append(ds_ww3)
+
+    # GFS: regular grid, interpolate to target
+    gfs_ds = ds_gfs
+    if "longitude" not in gfs_ds and "lon" in gfs_ds:
+        gfs_ds = gfs_ds.rename({"lon": "longitude", "lat": "latitude"})
+    gfs_1d_lon = _to_numpy(gfs_ds["longitude"])
+    gfs_1d_lat = _to_numpy(gfs_ds["latitude"])
+    if not np.allclose(gfs_1d_lon, lon_tgt) or not np.allclose(gfs_1d_lat, lat_tgt):
+        print("Regridding GFS to target grid...")
+        # Create 2D mesh from 1D for interpolation (GFS has regular grid)
+        lon2d, lat2d = np.meshgrid(gfs_1d_lon, gfs_1d_lat)
+        gfs_2d = xr.Dataset({
+            "lon": (["y", "x"], lon2d),
+            "lat": (["y", "x"], lat2d)
+        })
+        for v in gfs_ds.data_vars:
+            gfs_2d[v] = gfs_ds[v].values
+            if "longitude" in gfs_ds[v].dims:
+                gfs_2d[v] = gfs_2d[v].rename({"longitude": "x", "latitude": "y"})
+        gfs_regridded = _interp_curvilinear_to_regular(
+            gfs_2d, gfs_2d["lon"], gfs_2d["lat"], lon_tgt, lat_tgt,
+            variables=list(gfs_2d.data_vars), method=args.method
+        )
+        out_datasets.append(gfs_regridded)
+    else:
+        out_datasets.append(gfs_ds)
+
+    # HYCOM: curvilinear grid (needs special handling)
+    if "longitude" in ds_hycom and ds_hycom["longitude"].ndim == 2:
+        print("Regridding HYCOM (curvilinear) to target grid...")
+        hycom_regridded = _interp_curvilinear_to_regular(
+            ds_hycom,
+            ds_hycom["longitude"],
+            ds_hycom["latitude"],
+            lon_tgt,
+            lat_tgt,
+            variables=[v for v in ds_hycom.data_vars],
+            method=args.method
+        )
+        out_datasets.append(hycom_regridded)
+    else:
+        out_datasets.append(ds_hycom)
+
+    # ------------------------------------------------ 
+    # 4. Merge all datasets
+    # ------------------------------------------------ 
+    print("Merging all datasets...")
+    ds_merged = xr.merge(out_datasets)
+
+    # ------------------------------------------------ 
+    # 5. Save output with compression
+    # ------------------------------------------------ 
+    out_dir = os.path.dirname(args.out)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+    
+    encoding = {}
+    for var_name in ds_merged.data_vars:
+        encoding[var_name] = {
+            "zlib": True,
+            "complevel": 4,
+            "chunksizes": (args.chunk_time, args.chunk_lat, args.chunk_lon)
+        }
+    
+    ds_merged.to_netcdf(
+        args.out,
+        engine="netcdf4",
+        encoding=encoding,
+        format="NETCDF4",
+        mode="w"
+    )
+    print(f"\nSaved integrated file: {args.out}")
+    print(f"  Dimensions: {dict(ds_merged.sizes)}")
+    print(f"  Variables: {list(ds_merged.data_vars)}")
+
+
+if __name__ == "__main__":
+    main()
+
+
 def _grid_from_nc(path_nc: str) -> Tuple[np.ndarray, np.ndarray]:
     ds = xr.open_dataset(path_nc, engine="h5netcdf", decode_timedelta=True)
     ds = _ensure_latlon_names(ds)

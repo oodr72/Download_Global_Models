@@ -294,15 +294,15 @@ def main():
         logging.error(f"Domain '{args.domain}' not found in config")
         logging.error("Available domains: %s", list(config.domains.keys()))
         sys.exit(1)
-    else:
+    
     # Get domain coordinates
-        try:
-            coords = config.domains[args.domain]
-            logging.info(f"Using domain '{args.domain}': {coords}")
-        except KeyError:
-            logging.error(f"Domain '{args.domain}' not found in config")
-            logging.error("Available domains: %s", list(config.domains.keys()))
-            sys.exit(1)
+    try:
+        coords = config.domains[args.domain]
+        logging.info(f"Using domain '{args.domain}': {coords}")
+    except KeyError:
+        logging.error(f"Domain '{args.domain}' not found in config")
+        logging.error("Available domains: %s", list(config.domains.keys()))
+        sys.exit(1)
     
     # Calculate total steps for progress tracking
     step = timedelta(hours=args.timestep_hours)

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-start_date=${start_date}:-$(date -u +"%Y%m%d")}
+start_date=${start_date:-$(date -u +"%Y%m%d")}
 
 # Check if start_date contains non-digit characters and remove them
 start_date=$(echo "$start_date" | tr -cd '[:digit:]')

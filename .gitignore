@@ -1,6 +1,42 @@
-.env
-data/
-*.pyc
-figures/
+# Python
 __pycache__/
-figures/gifs/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment files (contains secrets!)
+.env
+
+# Data files (can be large)
+data/
+*.nc
+*.grb
+*.grb2
+*.nc.tmp
+*.temp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Jupyter
+.ipynb_checkpoints/

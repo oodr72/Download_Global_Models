@@ -13,7 +13,7 @@ output_dir="data/integrated"
 mkdir -p ${output_dir}/${start_date}
 
 
-python3 -m scripts.Integrator_ocean-atmosphere_noaa_project \
+python3 -m scripts.files_Integrator_metocen_noaa \
     --start ${start_time} \
     --end ${end_time} \
     --dt_hours ${dt_hours} \
