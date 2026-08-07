@@ -1,97 +1,179 @@
 # Download_Global_Models
 
-Operational Python scripts to download, subset, and convert global forecast model data for meteorological, oceanographic, and wave workflows.
+> Sistema para descarga, subconjunto y integración de modelos meteorológicos y oceanográficos globales.
 
-## Models
+## 🌍 Modelos disponibles
 
-| Script | Provider/model | Main output | Notes |
-| --- | --- | --- | --- |
-| `scripts/get_gfs.py` | NOAA GFS 0.25 deg | GRIB2 or NetCDF | Downloads analysis and forecast hours from NOMADS. |
-| `scripts/get_ecmwf.py` | ECMWF open forecast data | NetCDF subsets | Downloads GRIB2 files, subsets by configured domain, converts to NetCDF. |
-| `scripts/get_glorys.py` | Copernicus GLORYS physical ocean | NetCDF | Requires Copernicus Marine credentials. |
-| `scripts/get_mfwave.py` | Copernicus MFWAM wave | NetCDF | Requires Copernicus Marine credentials. |
-| `scripts/get_hycom.py` | NOAA RTOFS/HYCOM | NetCDF subsets | Downloads and subsets ocean forecast files. |
-| `scripts/get_ww3_noaa.py` | NOAA GEFS Wave / WW3 | NetCDF | Downloads wave GRIB2 files and converts with cfgrib. |
+### Pila Copernicus
+| Modelo | Variable | Fuente | Script |
+|--------|----------|--------|--------|
+| GLORYS 0.083° | Corrientes, SST, salinidad, hielo | Copernicus Marine | `scripts/get_glorys.py` |
+| ECMWF HRES 0.25° | Viento, temperatura, presión, precipitación | ECMWF Open Data | `scripts/get_ecmwf.py` |
+| FMWAM | Altura, dirección y período de olas | Copernicus Marine | `scripts/get_mfwave.py` |
 
-Default domains and output directories are configured in `config/config.py`.
+### Pila NOAA
+| Modelo | Variable | Fuente | Script |
+|--------|----------|--------|--------|
+| GFS 0.25° | Viento, temperatura, presión, precipitación | NOMADS (NOAA) | `scripts/get_gfs.py` |
+| RTOFS/HYCOM | Corrientes, SST, salinidad | NOMADS (NOAA) | `scripts/get_hycom.py`, `scripts/get_rtofs_ocean2d.py` |
+| GEFS/WW3 | Altura, dirección y período de olas | NOMADS (NOAA) | `scripts/get_ww3_noaa1.py` |
 
-## Setup
+## ⚡ Setup rápido
 
+### 1. Clonar y crear entorno virtual
 ```bash
+git clone https://github.com/oodr72/Download_Global_Models.git
+cd Download_Global_Models
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -r requirements-dev.txt
 ```
 
-GRIB and geospatial packages may also require system libraries:
-
+### 2. Instalar dependencias
 ```bash
+# Dependencias del sistema (Ubuntu/Debian)
 sudo apt-get install libeccodes0 libeccodes-dev libproj-dev proj-bin proj-data
+sudo apt-get install netcdf-bin libnetcdf-dev libhdf5-dev
+
+# Dependencias Python
+pip install -r requirements.txt
 ```
 
-## Credentials
-
-Copy `.env.example` to `.env` and fill local credentials only on your machine. Do not commit secrets.
-
+### 3. Configurar credenciales
 ```bash
 cp .env.example .env
-python3 -m tools.set_copernicusmarine_credentials
+# Editar .env con tus credenciales
 ```
 
-Supported Copernicus variables are `COPERNICUS_USER` and `COPERNICUS_KEY`; aliases `COPERNICUS_UID` and `COPERNICUS_API_TOKEN` are also accepted for compatibility.
+#### Copernicus Marine
+```bash
+python3 -c "import copernicusmarine; copernicusmarine.login(username='TU_USUARIO', password='TU_CLAVE')"
+```
 
-## Usage
+#### ECMWF
+```bash
+echo "apikey=TU_EMAIL:TU_KEY" > ~/.ecmwfap_rc
+```
 
-Always inspect CLI options before running a download:
+### 4. Configurar dominio
+
+Editar `config/config.py` para cambiar el dominio:
+```python
+domain_name = "atlantic"  # Opciones:
+# atlantic, mediterranean, arctic, north_atlantic, south_atlantic
+# north_pacific, south_pacific, indian, southern, red_sea, caribbean
+```
+
+## 🚀 Uso
+
+### Descargar datos de un modelo individual
+```bash
+# GFS today
+python3 -m scripts.get_gfs --start_date 20251206 --domain atlantic --last_hour 24
+
+# ECMWF with specific run
+python3 -m scripts.get_ecmwf --start_date 20251206 --run_hour 12 --domain caribbean
+
+# GLORYS
+python3 -m scripts.get_glorys --start_date 20251206 --domain atlantic --last_hour 48
+
+# FMWAM
+python3 -m scripts.get_mfwave --start_date 20251206 --domain atlantic --last_hour 24
+
+# HYCOM/RTOFS
+python3 -m scripts.get_hycom --start_date 20251206 --domain atlantic
+
+# RTOFS 2D con subsetting
+python3 -m scripts.get_rtofs_ocean2d --start_date 20251206 --domain atlantic --last_hour 72
+```
+
+### Integrar múltiples modelos (Copernicus)
+```bash
+# Descarga e integra GLORYS + ECMWF + FMWAM
+bash run/run_files_integrator_copernicus.sh
+```
+
+### Integrar múltiples modelos (NOAA)
+```bash
+# Descarga e integra HYCOM + GFS + WW3
+bash run/run_files_integrator_noaa.sh
+```
+
+### Visualización
+```bash
+# Animación estilo Windy (corrientes)
+python3 -m tools.windy_animator \
+  --nc data/copernicus/20251206/integrated_copernicus_20251206.nc \
+  --mode currents_map --uvar uo --vvar vo \
+  --out figures/gifs/20251206/currents.gif
+
+# Mapa de dominios
+python3 -m tools.get_domain_map
+```
+
+## 📁 Estructura del proyecto
+
+```
+Download_Global_Models/
+├── config/              # Configuración centralizada (dominios, variables, rutas)
+│   └── config.py
+├── scripts/             # Scripts de descarga e integración
+│   ├── get_gfs.py       # NOAA GFS (atmósfera)
+│   ├── get_ecmwf.py     # ECMWF HRES (atmósfera)
+│   ├── get_glorys.py    # Copernicus GLORYS (océano)
+│   ├── get_hycom.py     # NOAA RTOFS/HYCOM (océano)
+│   ├── get_mfwave.py    # Copernicus FMWAM (olas)
+│   ├── get_ww3_noaa1.py # NOAA GEFS WW3 (olas)
+│   ├── get_rtofs_ocean2d.py  # RTOFS 2D avanzado
+│   ├── files_integrator_metocen_copernicus.py  # Integrador Copernicus
+│   └── files_Integrator_metocen_noaa.py        # Integrador NOAA
+├── src/                 # Utilidades compartidas
+│   └── files_functions.py  # Credenciales y configuración
+├── tools/               # Herramientas auxiliares
+│   ├── windy_animator.py
+│   ├── grib_to_netcdf.py
+│   ├── get_domain_map.py
+│   └── ...
+├── run/                 # Scripts de orquestación (shell)
+│   ├── run_files_integrator_copernicus.sh
+│   └── run_files_integrator_noaa.sh
+├── test/                # Pruebas (pytest)
+└── data/                # Datos descargados (generado)
+    ├── gfs/, ecmwf/, glorys/, fmwam/, hycom/, ww3/
+    └── integrated/      # Resultados de integración
+```
+
+## 🧪 Tests
 
 ```bash
-python3 -m scripts.get_gfs --help
-python3 -m scripts.get_ecmwf --help
-python3 -m scripts.get_glorys --help
-python3 -m scripts.get_mfwave --help
-python3 -m scripts.get_hycom --help
-python3 -m scripts.get_ww3_noaa --help
+# Ejecutar pruebas
+pytest test/ -v
 ```
 
-Examples:
+## 📊 Dominios disponibles
 
-```bash
-python3 -m scripts.get_gfs --date 20260531 --time 00 --last_hour 24 --format grib2
-python3 -m scripts.get_glorys --start_date 20260531 --days_number 1 --domain atlantic
-python3 -m scripts.get_mfwave --start_date 20260531 --days_number 1 --variables VHM0_WW VMDR_WW
-python3 -m tools.get_domain_map --domain atlantic --save
-```
+| Dominio | Región | Lon [°] | Lat [°] |
+|---------|--------|---------|---------|
+| atlantic | Atlántico N + Caribe | -90 → 1 | 9 → 54 |
+| mediterranean | Mediterráneo | -5 → 36 | 30 → 46 |
+| arctic | Ártico | -180 → 180 | 66.5 → 90 |
+| caribbean | Caribe | -90 → -60 | 9 → 25 |
+| north_atlantic | Atlántico Norte | -90 → 0 | 0 → 66.5 |
+| south_atlantic | Atlántico Sur | -90 → 20 | -60 → 0 |
+| north_pacific | Pacífico Norte | 120 → -100 | 0 → 66.5 |
+| south_pacific | Pacífico Sur | 120 → -70 | -60 → 0 |
+| indian | Índico | 20 → 120 | -60 → 30 |
+| southern | Océano Austral | -180 → 180 | -80 → -60 |
+| red_sea | Mar Rojo | 32 → 44 | 12 → 30 |
 
-Downloaded model artifacts are ignored by git. Use temporary output folders for experiments and avoid committing NetCDF/GRIB products unless a small fixture is intentionally added.
+## ⚠️ Notas
 
-## Visual Dashboard
+- **Saltarse archivos válidos**: Todos los scripts verifican integridad de archivos NetCDF y saltan descargas si ya existen archivos válidos.
+- **Forzar re-descarga**: Usa `--force_redownload` para forzar la descarga completa.
+- **Logging**: Usa `--log_level DEBUG` para diagnosticar problemas.
+- **ECMWF pygrib**: La ruta con pygrib es lenta para dominios grandes (O(n²)). Se recomienda usar `cfgrib` (predeterminado).
 
-An interactive Streamlit dashboard provides a graphical interface to configure, launch, and monitor downloads, visualize domains on a map, browse downloaded files, and preview NetCDF data.
+## 🤝 Autores
 
-```bash
-streamlit run app.py
-```
-
-Features:
-- Model/domain/date selector with per-model parameter panels
-- Interactive Plotly geo-map of selected domain
-- One-click download execution with live log streaming
-- File browser with size and timestamp info
-- NetCDF variable inspector with interactive 2-D plots
-
-## Testing
-
-The default test suite is offline and uses mocks or synthetic datasets.
-
-```bash
-python3 -m compileall config src scripts tools test
-python3 -m pytest -q
-```
-
-Live provider downloads should be explicit and isolated from the normal test path. Use small date/hour windows and a temporary output folder.
-
-## Maintenance
-
-This repository includes an LLM wiki workflow in `.github/skills/llm-wiki.md`. After substantive changes, update `raw/`, `wiki/`, `wiki/index.md`, and `wiki/log.md` in the same pass as README/docs updates.
-
-Future maintenance agents can use `.github/skills/download-global-models-maintenance/SKILL.md` for the standard audit, refactor, test, and wiki-update workflow.
+- **Amilcar E. Calzada** — Arquitectura y diseño del sistema
+- **Oscar O. Diaz** — Desarrollo, integración y mantenimiento
+- Colaboración con asistencia de IA

@@ -1,25 +1,48 @@
-requests>=2.31.0
-numpy>=1.24.0
+# ============================================================
+# Download_Global_Models - Python Dependencies
+# ============================================================
+# System dependencies (install separately):
+#   sudo apt-get install libeccodes0 libeccodes-dev libproj-dev proj-bin proj-data
+#   sudo apt-get install netcdf-bin libnetcdf-dev libhdf5-dev
+
+# Core data libraries
 xarray==2025.7.1
 netCDF4==1.7.2
-cfgrib==0.9.15.0
-copernicusmarine==2.2.0
-python-dotenv>=1.0.1
+numpy>=1.24.0
+scipy>=1.10.0
 
-# Optional operational APIs/tools used by some workflows
+# GRIB handling
+cfgrib==0.9.15.0
+pygrib>=2.1.0
+
+# API clients
+copernicusmarine==2.2.0
 cdsapi==0.7.6
 ecmwf-opendata==0.3.19
+
+# HTTP / downloads
+requests>=2.31.0
+
+# Environment / configuration
+decouple==0.0.7
+dotenv==0.9.9
+python-decouple>=3.8
+
+# Visualization
 matplotlib>=3.7.0
 cartopy>=0.22.0
+pillow>=10.0.0
 
-# Dashboard (app.py)
-streamlit>=1.32.0
-plotly>=5.18.0
+# NetCDF engines
+h5netcdf>=1.3.0
 
-# System libraries commonly required by GRIB/geospatial packages:
-# sudo apt-get install libeccodes0 libeccodes-dev
-# sudo apt-get install libproj-dev proj-bin proj-data
+# Re-gridding (optional but recommended)
+xesmf>=0.8.0
 
-# optional pygrib backend
-# pip install pygrib
-# python -m pip install python-decouple
+# Parallel computing (optional)
+dask[array,dataframe]>=2024.1.0
+
+# Testing (optional)
+pytest>=7.4.0
+pytest-cov>=4.1.0
+# ============================================================

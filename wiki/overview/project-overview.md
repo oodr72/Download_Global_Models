@@ -1,35 +1,31 @@
----
-Title: Project Overview
-Updated: 2026-05-31
-Sources: Local repository audit, 2026-05-31
-Raw: [Repository Audit and Implementation Notes](../../raw/ops/2026-05-31-repo-audit.md)
----
-
 # Project Overview
 
-Download_Global_Models is an operational downloader collection for global meteorological, oceanographic, and wave forecast products.
+## Purpose
+Download, subset, and integrate global meteorological, oceanographic, and wave forecast models to user-defined geographic domains.
 
-## Active Scripts
+## Architecture
+```
+config/config.py (single source of truth)
+    ↓
+Downloader scripts (scripts/get_*.py)
+    ↓
+Integrators (scripts/files_integrator_*.py)
+    ↓
+Visualization tools (tools/windy_animator.py, etc.)
+```
 
-- `scripts/get_gfs.py`: NOAA GFS 0.25 deg GRIB2 downloads with optional NetCDF conversion.
-- `scripts/get_ecmwf.py`: ECMWF public forecast GRIB2 downloads, domain subsetting, and NetCDF output.
-- `scripts/get_glorys.py`: Copernicus Marine GLORYS physical ocean subset downloads.
-- `scripts/get_mfwave.py`: Copernicus Marine MFWAM wave subset downloads.
-- `scripts/get_hycom.py`: NOAA RTOFS/HYCOM NetCDF downloads and spatial subsetting.
-- `scripts/get_ww3_noaa.py`: NOAA GEFS Wave / WW3 GRIB2 downloads and NetCDF conversion.
+## Two Parallel Pipelines
+1. **Copernicus**: GLORYS (ocean) + ECMWF HRES (atmosphere) + FMWAM (waves)
+2. **NOAA**: HYCOM/RTOFS (ocean) + GFS (atmosphere) + WW3 (waves)
 
-## Shared Surfaces
+## Key Libraries
+- xarray 2025.7.1, netCDF4 1.7.2
+- cfgrib 0.9.15.0, pygrib
+- copernicusmarine 2.2.0, cdsapi 0.7.6
+- ecmwf-opendata 0.3.19
 
-- `config/config.py` owns default domains, output folders, forecast lengths, variables, and run hours.
-- `src/files_functions.py` owns credential helpers and dynamic config loading.
-- `src/model_utils.py` owns shared date, forecast-hour, domain, file, directory, and GRIB index helpers.
-- `tools/` contains optional operational tools for credential setup, GRIB conversion, and domain maps.
+## Domains
+12 pre-defined domains: atlantic, mediterranean, arctic, north_atlantic, south_atlantic, north_pacific, south_pacific, indian, southern, red_sea, caribbean
 
-## Maintenance Direction
-
-The repository should keep one active script per model under `scripts/`, with historical or experimental files treated as legacy examples. Tests should be offline by default and live downloads should be opt-in.
-
-## See Also
-
-- [Maintenance And Validation](../ops/maintenance-and-validation.md)
-- [Implementation 2026-05-31](../ops/implementation-2026-05-31.md)
+## Status
+Operational — all critical bugs fixed as of 2025-06-17.
